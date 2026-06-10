@@ -9,38 +9,128 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedDashboardSteekproefRouteImport } from './routes/_authenticated/dashboard.steekproef'
+import { Route as AuthenticatedDashboardKwaliteitRouteImport } from './routes/_authenticated/dashboard.kwaliteit'
+import { Route as AuthenticatedDashboardAdviseurRouteImport } from './routes/_authenticated/dashboard.adviseur'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDashboardSteekproefRoute =
+  AuthenticatedDashboardSteekproefRouteImport.update({
+    id: '/steekproef',
+    path: '/steekproef',
+    getParentRoute: () => AuthenticatedDashboardRoute,
+  } as any)
+const AuthenticatedDashboardKwaliteitRoute =
+  AuthenticatedDashboardKwaliteitRouteImport.update({
+    id: '/kwaliteit',
+    path: '/kwaliteit',
+    getParentRoute: () => AuthenticatedDashboardRoute,
+  } as any)
+const AuthenticatedDashboardAdviseurRoute =
+  AuthenticatedDashboardAdviseurRouteImport.update({
+    id: '/adviseur',
+    path: '/adviseur',
+    getParentRoute: () => AuthenticatedDashboardRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
+  '/dashboard/adviseur': typeof AuthenticatedDashboardAdviseurRoute
+  '/dashboard/kwaliteit': typeof AuthenticatedDashboardKwaliteitRoute
+  '/dashboard/steekproef': typeof AuthenticatedDashboardSteekproefRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
+  '/dashboard/adviseur': typeof AuthenticatedDashboardAdviseurRoute
+  '/dashboard/kwaliteit': typeof AuthenticatedDashboardKwaliteitRoute
+  '/dashboard/steekproef': typeof AuthenticatedDashboardSteekproefRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRouteWithChildren
+  '/_authenticated/dashboard/adviseur': typeof AuthenticatedDashboardAdviseurRoute
+  '/_authenticated/dashboard/kwaliteit': typeof AuthenticatedDashboardKwaliteitRoute
+  '/_authenticated/dashboard/steekproef': typeof AuthenticatedDashboardSteekproefRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/dashboard/adviseur'
+    | '/dashboard/kwaliteit'
+    | '/dashboard/steekproef'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/dashboard/adviseur'
+    | '/dashboard/kwaliteit'
+    | '/dashboard/steekproef'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/dashboard/adviseur'
+    | '/_authenticated/dashboard/kwaliteit'
+    | '/_authenticated/dashboard/steekproef'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,12 +138,82 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard/steekproef': {
+      id: '/_authenticated/dashboard/steekproef'
+      path: '/steekproef'
+      fullPath: '/dashboard/steekproef'
+      preLoaderRoute: typeof AuthenticatedDashboardSteekproefRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
+    }
+    '/_authenticated/dashboard/kwaliteit': {
+      id: '/_authenticated/dashboard/kwaliteit'
+      path: '/kwaliteit'
+      fullPath: '/dashboard/kwaliteit'
+      preLoaderRoute: typeof AuthenticatedDashboardKwaliteitRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
+    }
+    '/_authenticated/dashboard/adviseur': {
+      id: '/_authenticated/dashboard/adviseur'
+      path: '/adviseur'
+      fullPath: '/dashboard/adviseur'
+      preLoaderRoute: typeof AuthenticatedDashboardAdviseurRouteImport
+      parentRoute: typeof AuthenticatedDashboardRoute
+    }
   }
 }
 
+interface AuthenticatedDashboardRouteChildren {
+  AuthenticatedDashboardAdviseurRoute: typeof AuthenticatedDashboardAdviseurRoute
+  AuthenticatedDashboardKwaliteitRoute: typeof AuthenticatedDashboardKwaliteitRoute
+  AuthenticatedDashboardSteekproefRoute: typeof AuthenticatedDashboardSteekproefRoute
+}
+
+const AuthenticatedDashboardRouteChildren: AuthenticatedDashboardRouteChildren =
+  {
+    AuthenticatedDashboardAdviseurRoute: AuthenticatedDashboardAdviseurRoute,
+    AuthenticatedDashboardKwaliteitRoute: AuthenticatedDashboardKwaliteitRoute,
+    AuthenticatedDashboardSteekproefRoute:
+      AuthenticatedDashboardSteekproefRoute,
+  }
+
+const AuthenticatedDashboardRouteWithChildren =
+  AuthenticatedDashboardRoute._addFileChildren(
+    AuthenticatedDashboardRouteChildren,
+  )
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRouteWithChildren
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRouteWithChildren,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
