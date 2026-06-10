@@ -19,6 +19,6 @@ export async function logAudit(
     action,
     resource_type,
     resource_id,
-    payload,
+    payload: payload as never,
   });
 }
