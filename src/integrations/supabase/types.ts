@@ -187,6 +187,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_rls_selftest: {
+        Args: { adv_id: string; res_id: string; rev_id: string }
+        Returns: Json
+      }
       current_user_has_any_role: {
         Args: { _roles: Database["public"]["Enums"]["app_role"][] }
         Returns: boolean
