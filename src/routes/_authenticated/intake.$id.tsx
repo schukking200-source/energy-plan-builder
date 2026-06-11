@@ -87,7 +87,9 @@ function IntakeDetail() {
     if (next === "approved" || next === "rejected" || next === "in_review") {
       patch.review_notes = notes || null;
     }
-    const { error } = await supabase.from("in_measurement").update(patch).eq("id", row.id);
+    const { error } = await (supabase.from("in_measurement") as unknown as {
+      update: (p: Record<string, unknown>) => { eq: (k: string, v: string) => Promise<{ error: { message: string } | null }> };
+    }).update(patch).eq("id", row.id);
     if (error) {
       toast.error(error.message);
     } else {

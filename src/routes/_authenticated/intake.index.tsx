@@ -68,28 +68,35 @@ function IntakeList() {
       ) : (
         <div className="grid gap-3">
           {rows.map((r) => (
-            <Card key={r.id}>
-              <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
-                <div className="flex items-center gap-3">
-                  <FileText className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <div className="font-medium">
-                      {r.object_ref ?? <span className="text-muted-foreground">geen BAG-id</span>}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(r.captured_at).toLocaleString("nl-NL")}
+            <Link
+              key={r.id}
+              to="/intake/$id"
+              params={{ id: r.id }}
+              className="block rounded-lg transition hover:opacity-90"
+            >
+              <Card>
+                <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <div className="font-medium">
+                        {r.object_ref ?? <span className="text-muted-foreground">geen BAG-id</span>}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(r.captured_at).toLocaleString("nl-NL")}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline">{r.status}</Badge>
-                  <Badge variant="secondary">{r.source}</Badge>
-                  <Badge variant="secondary">bewijs: {r.evidence_level}</Badge>
-                  {r.scan_app && <Badge>{r.scan_app}</Badge>}
-                  {r.lidar_point_cloud_ref && <Badge variant="default">LiDAR</Badge>}
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">{r.status}</Badge>
+                    <Badge variant="secondary">{r.source}</Badge>
+                    <Badge variant="secondary">bewijs: {r.evidence_level}</Badge>
+                    {r.scan_app && <Badge>{r.scan_app}</Badge>}
+                    {r.lidar_point_cloud_ref && <Badge variant="default">LiDAR</Badge>}
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       )}
