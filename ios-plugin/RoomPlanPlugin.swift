@@ -102,10 +102,12 @@ public class RoomPlanPlugin: CAPPlugin, RoomCaptureSessionDelegate {
             return
         }
         
-        DispatchQueue.main.async {
+        Task {
             do {
-                let room = try CapturedRoom(from: data)
-                
+                let roomBuilder = RoomBuilder(options: [.beautifyObjects])
+                let room = try await roomBuilder.capturedRoom(from: data)
+
+                DispatchQueue.main.async {
                 // Calculate total area
                 var totalArea: Float = 0
                 for floor in room.floors {
@@ -201,11 +203,14 @@ public class RoomPlanPlugin: CAPPlugin, RoomCaptureSessionDelegate {
                     "totalWindows": room.windows.count,
                     "totalDoors": room.doors.count,
                 ])
+                    self.cleanup()
+                }
             } catch {
-                self.savedCall?.reject("Failed to process room data: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.savedCall?.reject("Failed to process room data: \(error.localizedDescription)")
+                    self.cleanup()
+                }
             }
-            
-            self.cleanup()
         }
     }
     
@@ -214,40 +219,28 @@ public class RoomPlanPlugin: CAPPlugin, RoomCaptureSessionDelegate {
     @available(iOS 17.0, *)
     private func labelForSection(_ section: CapturedRoom.Section, index: Int) -> String {
         // Try to derive a sensible name from the section label
-        if let label = section.label {
-            switch label {
-            case .livingRoom: return "Woonkamer"
-            case .bedroom: return "Slaapkamer \(index + 1)"
-            case .bathroom: return "Badkamer"
-            case .kitchen: return "Keuken"
-            case .diningRoom: return "Eetkamer"
-            case .laundryRoom: return "Wasruimte"
-            case .garage: return "Garage"
-            case .hallway: return "Hal"
-            case .other: return "Ruimte \(index + 1)"
-            @unknown default: return "Ruimte \(index + 1)"
-            }
+        switch section.label {
+        case .livingRoom: return "Woonkamer"
+        case .bedroom: return "Slaapkamer \(index + 1)"
+        case .bathroom: return "Badkamer"
+        case .kitchen: return "Keuken"
+        case .diningRoom: return "Eetkamer"
+        case .unidentified: return "Ruimte \(index + 1)"
+        @unknown default: return "Ruimte \(index + 1)"
         }
-        return "Ruimte \(index + 1)"
     }
     
     @available(iOS 17.0, *)
     private func typeForSection(_ section: CapturedRoom.Section) -> String {
-        if let label = section.label {
-            switch label {
-            case .livingRoom: return "woonkamer"
-            case .bedroom: return "slaapkamer"
-            case .bathroom: return "badkamer"
-            case .kitchen: return "keuken"
-            case .diningRoom: return "woonkamer"
-            case .laundryRoom: return "wasruimte"
-            case .garage: return "garage"
-            case .hallway: return "hal"
-            case .other: return "woonkamer"
-            @unknown default: return "woonkamer"
-            }
+        switch section.label {
+        case .livingRoom: return "woonkamer"
+        case .bedroom: return "slaapkamer"
+        case .bathroom: return "badkamer"
+        case .kitchen: return "keuken"
+        case .diningRoom: return "woonkamer"
+        case .unidentified: return "woonkamer"
+        @unknown default: return "woonkamer"
         }
-        return "woonkamer"
     }
     
     private func isInBounds(_ point: simd_float3, bounds: (min: simd_float3, max: simd_float3)) -> Bool {
