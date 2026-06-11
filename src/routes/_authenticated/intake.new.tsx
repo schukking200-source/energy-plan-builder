@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { logAudit } from "@/lib/audit";
 import { z } from "zod";
 import { Loader2, MapPin, Upload } from "lucide-react";
+import { ALLOWED_SCAN_EXTENSIONS, MAX_SCAN_BYTES, validateScanFile } from "@/lib/upload-validation";
 
 export const Route = createFileRoute("/_authenticated/intake/new")({
   head: () => ({ meta: [{ title: "Nieuwe opname — Isolatieplan Tool" }] }),
