@@ -19,6 +19,7 @@ import { Route as AuthenticatedIntakeIdRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedDashboardSteekproefRouteImport } from './routes/_authenticated/dashboard.steekproef'
 import { Route as AuthenticatedDashboardKwaliteitRouteImport } from './routes/_authenticated/dashboard.kwaliteit'
 import { Route as AuthenticatedDashboardAdviseurRouteImport } from './routes/_authenticated/dashboard.adviseur'
+import { Route as AuthenticatedAdminRlsTestsRouteImport } from './routes/_authenticated/admin.rls-tests'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -73,11 +74,18 @@ const AuthenticatedDashboardAdviseurRoute =
     path: '/adviseur',
     getParentRoute: () => AuthenticatedDashboardRoute,
   } as any)
+const AuthenticatedAdminRlsTestsRoute =
+  AuthenticatedAdminRlsTestsRouteImport.update({
+    id: '/admin/rls-tests',
+    path: '/admin/rls-tests',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
+  '/admin/rls-tests': typeof AuthenticatedAdminRlsTestsRoute
   '/dashboard/adviseur': typeof AuthenticatedDashboardAdviseurRoute
   '/dashboard/kwaliteit': typeof AuthenticatedDashboardKwaliteitRoute
   '/dashboard/steekproef': typeof AuthenticatedDashboardSteekproefRoute
@@ -89,6 +97,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
+  '/admin/rls-tests': typeof AuthenticatedAdminRlsTestsRoute
   '/dashboard/adviseur': typeof AuthenticatedDashboardAdviseurRoute
   '/dashboard/kwaliteit': typeof AuthenticatedDashboardKwaliteitRoute
   '/dashboard/steekproef': typeof AuthenticatedDashboardSteekproefRoute
@@ -102,6 +111,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRouteWithChildren
+  '/_authenticated/admin/rls-tests': typeof AuthenticatedAdminRlsTestsRoute
   '/_authenticated/dashboard/adviseur': typeof AuthenticatedDashboardAdviseurRoute
   '/_authenticated/dashboard/kwaliteit': typeof AuthenticatedDashboardKwaliteitRoute
   '/_authenticated/dashboard/steekproef': typeof AuthenticatedDashboardSteekproefRoute
@@ -115,6 +125,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/admin/rls-tests'
     | '/dashboard/adviseur'
     | '/dashboard/kwaliteit'
     | '/dashboard/steekproef'
@@ -126,6 +137,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/admin/rls-tests'
     | '/dashboard/adviseur'
     | '/dashboard/kwaliteit'
     | '/dashboard/steekproef'
@@ -138,6 +150,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/dashboard'
+    | '/_authenticated/admin/rls-tests'
     | '/_authenticated/dashboard/adviseur'
     | '/_authenticated/dashboard/kwaliteit'
     | '/_authenticated/dashboard/steekproef'
@@ -224,6 +237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardAdviseurRouteImport
       parentRoute: typeof AuthenticatedDashboardRoute
     }
+    '/_authenticated/admin/rls-tests': {
+      id: '/_authenticated/admin/rls-tests'
+      path: '/admin/rls-tests'
+      fullPath: '/admin/rls-tests'
+      preLoaderRoute: typeof AuthenticatedAdminRlsTestsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -248,6 +268,7 @@ const AuthenticatedDashboardRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRouteWithChildren
+  AuthenticatedAdminRlsTestsRoute: typeof AuthenticatedAdminRlsTestsRoute
   AuthenticatedIntakeIdRoute: typeof AuthenticatedIntakeIdRoute
   AuthenticatedIntakeNewRoute: typeof AuthenticatedIntakeNewRoute
   AuthenticatedIntakeIndexRoute: typeof AuthenticatedIntakeIndexRoute
@@ -255,6 +276,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRouteWithChildren,
+  AuthenticatedAdminRlsTestsRoute: AuthenticatedAdminRlsTestsRoute,
   AuthenticatedIntakeIdRoute: AuthenticatedIntakeIdRoute,
   AuthenticatedIntakeNewRoute: AuthenticatedIntakeNewRoute,
   AuthenticatedIntakeIndexRoute: AuthenticatedIntakeIndexRoute,
