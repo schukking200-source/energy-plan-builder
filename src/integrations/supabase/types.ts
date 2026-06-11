@@ -165,6 +165,10 @@ export type Database = {
           due_date: string | null
           id: string
           is_golive_blocker: boolean
+          is_project_blocker: boolean
+          module: string | null
+          module_label: string | null
+          module_order: number | null
           owner: string | null
           phase: number
           phase_label: string
@@ -181,6 +185,10 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_golive_blocker?: boolean
+          is_project_blocker?: boolean
+          module?: string | null
+          module_label?: string | null
+          module_order?: number | null
           owner?: string | null
           phase: number
           phase_label: string
@@ -197,6 +205,10 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_golive_blocker?: boolean
+          is_project_blocker?: boolean
+          module?: string | null
+          module_label?: string | null
+          module_order?: number | null
           owner?: string | null
           phase?: number
           phase_label?: string

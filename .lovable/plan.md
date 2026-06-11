@@ -1,158 +1,84 @@
-# Isolatieplan Tool — Lovable MVP 0 als blueprint voor aanbesteding
 
-## Positionering
+# Roadmap herstructureren per module — LiDAR eerst
 
-Dit plan beschrijft wat Lovable bouwt als **"MVP 0" / functionele blueprint**, parallel aan de aanbesteding van de definitieve enterprise-build. Opbrengst: werkend datamodel, alle portalen, regelengine-skelet, en API-contracten die de winnende ontwikkelpartij 1-op-1 kan overnemen op Azure.
+## Waarom
 
-**Niet:** productiesysteem onder BIO2/ISO27001, geen LiDAR-app, geen gecertificeerde NTA 8800-engine, geen iDIN/eHerkenning, geen 9 fysieke DB's.
+Huidige roadmap is per **fase** (1–9, lineair). Jij wil per **module/blok** kunnen sturen en opleveren, met **LiDAR als harde voorwaarde**: lukt LiDAR op iPad niet → hele project stopt. Dat moet visueel bovenaan staan, niet verstopt in fase 3.
 
----
+## Wat ik bouw
 
-## Globale scope-matrix
+### 1. Nieuwe groepering: "module" naast "phase"
 
-| Onderdeel uit FO/TO | In Lovable MVP 0 | In aanbesteding (Azure-build) |
-|---|---|---|
-| Datamodel BAG-object + relaties + scenario's A–D | ✅ Volledig | Overname schema + migratie naar 9 DB's |
-| Bewonersportaal | ✅ Volledig functioneel | Hergebruik UI, koppelen aan iDIN |
-| Adviesbureau-webportaal | ✅ Volledig | Hergebruik UI |
-| Kwaliteitscommissie review-UI | ✅ Volledig | Hergebruik UI |
-| Steekproefcontrole-UI | ✅ Volledig | Hergebruik UI |
-| M29-regelengine | ✅ Als pure functie + testcases | Productie-versie met versiebeheer |
-| NTA 8800 rekenkern | ⚠️ Stub met identieke I/O-shape | Licentie Uniec3/Vabi inpluggen |
-| Rapport-generatie (concept → definitief + hash) | ✅ Volledig | Hergebruik logica |
-| Append-only audit-log met hash-chaining | ✅ In Postgres | Migratie naar WORM + SIEM |
-| 9 fysieke DB-compartimenten + CMK per DB | ❌ → logische scheiding via 9 schema's + RLS | ✅ Fysieke splitsing op Azure |
-| iPad-app met LiDAR / RoomPlan | ❌ Niet mogelijk | Native Swift-team, apart traject |
-| Offline-sync ACK 1–5 | ❌ → web upload-flow zonder offline | Native CRDT/queue-implementatie |
-| iDIN / eHerkenning | ❌ → Supabase Auth + MFA als placeholder | Entra ID B2C + broker (Signicat) |
-| Azure hosting + BIO2/ISO27001-audit | ❌ → Lovable Cloud (Cloudflare) | ✅ Azure West-Europa |
-| SIEM, break-glass, Key Vault per compartiment | ❌ → app-logging | ✅ Azure-native |
+Tabel `roadmap_task` krijgt één extra kolom:
+- `module` (text) — bv. `"lidar"`, `"foundation"`, `"object"`, `"opname"`, `"rekenkern"`, `"rapportage"`, `"kwaliteit"`, `"uitvoering"`, `"audit"`, `"go_live"`
+- `module_label` (text) — leesbaar label
+- `module_order` (smallint) — volgorde modules
+- `is_project_blocker` (bool) — strenger dan `is_golive_blocker`: zonder dit stopt het hele project (nu: alleen LiDAR-module)
 
----
+Bestaande `phase`-data blijft staan (voor history), maar UI groepeert voortaan op module.
 
-## Fasering
+### 2. Module 0 — LiDAR / iPad (NIEUW, bovenaan)
 
-### Fase 1 — Foundation (datamodel + auth + rollen)
+Wordt als allereerste blok toegevoegd met `is_project_blocker=true`. Taken:
 
-**Deliverables**
-- 9 Postgres-schema's binnen één Supabase: `identity`, `objects`, `intake`, `calc`, `rules`, `report`, `quote_exec`, `finance`, `audit`
-- Strikte RLS per schema, aparte DB-rollen (service-role-scheiding als gateway-equivalent)
-- `user_roles`-tabel + `has_role()` security-definer (least-privilege, geen role-escalation)
-- Append-only `audit.events` (INSERT-only grants, hash-chained per record)
-- Auth: Supabase Auth + email/password + Google + **MFA verplicht** voor medewerkers
-- 4 lege rol-dashboards (bewoner / adviseur / kwaliteitscommissie / steekproef) als routing-shell
+```text
+[ ] Apple Developer-account actief (€99/jr)
+[ ] Xcode 26.2 + iOS 26.5 device support gedownload
+[ ] iPad Developer Mode aan + getrust
+[ ] cap add ios + cap sync ios uitgevoerd
+[ ] RoomPlanPlugin.swift + .m toegevoegd aan Xcode-target
+[ ] Bridging header aangemaakt
+[ ] Camera-permissie in Info.plist
+[ ] Signing team + bundle-id ingesteld
+[ ] App installeert op fysieke iPad via kabel
+[ ] RoomPlan-scan opent + voltooit
+[ ] USDZ + JSON upload naar Supabase Storage werkt
+[ ] Eerste end-to-end test: scan → opname → ingediend
+[ ] TestFlight-build live voor 1 externe tester
+```
 
-**Buiten scope deze fase:** iDIN/eHerkenning, CMK per schema, SIEM.
+Status van deze module bepaalt of de andere modules überhaupt zin hebben — duidelijk in UI markeren met rode banner: *"Zonder werkende LiDAR-pipeline stopt het project. Eerst Module 0 afronden."*
 
----
+### 3. Module-mapping bestaande taken
 
-### Fase 2 — Object & relaties (DB3 + objectrelatie-model)
+| Bestaande fase           | Nieuwe module       |
+|--------------------------|---------------------|
+| 1 Foundation             | `foundation`        |
+| 2 Object & relaties      | `object`            |
+| 3 Opname-flow (web)      | `opname` (web-fallback, LiDAR-stukken splitsen naar `lidar`) |
+| 4 Rekenkern + M29        | `rekenkern`         |
+| 5 Rapportage             | `rapportage`        |
+| 6 Kwaliteit + steekproef | `kwaliteit`         |
+| 7 Uitvoering & subsidie  | `uitvoering`        |
+| 8 Audit-export           | `audit`             |
+| 9 Go-live blockers Azure | `go_live`           |
 
-**Deliverables**
-- BAG-object entiteit (`bag_id`, adres, bouwjaar, gebruiksdoel) — handmatige invoer + CSV-import (geen live BAG-API)
-- `object_relation` met `valid_from`, `valid_until`, `relation_type` (eigenaar, adviseur-toewijzing, uitvoerder)
-- Object access policy: middleware die elke read/write valideert tegen actieve relatie
-- Maskering bij eigendomswissel (oude eigenaar verliest toegang tot technische data, behoudt eigen correspondentie)
-- Audit-events op elke objecttoegang
+### 4. UI-aanpassing `/_authenticated/roadmap`
 
-**Buiten scope:** live BAG-koppeling (placeholder voor productie).
+- Groepering op `module_order`, niet meer op `phase`.
+- Bovenaan: prominente **"Project-blockers"** kaart die `is_project_blocker` items toont (LiDAR-module). Rood/dik, niet te missen.
+- Per module: voortgangsbalk + status-pill (`niet gestart` / `bezig` / `klaar` / `geblokkeerd`).
+- Optioneel filter: "Toon alleen open taken" / "Toon alleen MVP 0".
+- Modulekop klikbaar = inklapbaar, zodat één module tegelijk in focus kan.
 
----
+### 5. Volgorde-advies in UI
 
-### Fase 3 — Opname-flow (web, geen iPad)
+Banner bovenaan: *"Aanbevolen levering: Module 0 (LiDAR) → Module Foundation → Object → Opname → …"*. Modules onder Module 0 blijven zichtbaar maar krijgen subtiel "wacht op Module 0"-label tot LiDAR groen is.
 
-**Deliverables**
-- Opnameformulier in web-PWA (tablet-vriendelijk responsive)
-- Gestructureerde velden volgens ISSO-opnameprotocol: bouwdelen, openingen, ventilatie, risico's
-- Verplichte velden + foto-upload (Supabase Storage, versleuteld)
-- **Bronstatus + bewijskracht** per ingevulde waarde (manual / measured / inferred / lidar-derived)
-- Versie + hash per opname-snapshot
+## Technische uitvoering
 
-**Expliciet buiten scope:**
-- LiDAR / RoomPlan capture (vereist native iOS)
-- Offline-first werking met ACK 1–5 sync
-- Device binding + lokale sleutel-vernietiging
+1. **Migratie**: `ALTER TABLE roadmap_task ADD COLUMN module text, module_label text, module_order smallint, is_project_blocker bool default false;`
+2. **Data-migratie**: bestaande rijen mappen naar module (zie tabel hierboven). LiDAR-gerelateerde taken uit fase 3 verhuizen naar module `lidar` met `is_project_blocker=true`.
+3. **Seed Module 0**: 13 taken bovenstaand, allen `is_project_blocker=true`, `type='mvp0'`.
+4. **UI**: `src/routes/_authenticated/roadmap.tsx` herschrijven — groep op module, project-blocker banner, inklapbare secties.
+5. **`.lovable/plan.md`** bijwerken: module-indeling als nieuwe canonical structuur.
 
-→ De web-flow gebruikt dezelfde tabelstructuur als de uiteindelijke iPad-app, zodat sync-laag later kan worden toegevoegd zonder schema-migratie.
+## Wat NIET in deze stap
 
----
-
-### Fase 4 — Rekenkern stub + M29-regelengine
-
-**Deliverables**
-- `calculation_engine` als pluggable interface (`runScenario(input) → result`)
-- **Stub-implementatie** met dezelfde I/O-shape als NTA 8800 (deterministisch, traceerbaar, maar **niet gecertificeerd**)
-- 4 scenario's A/B/C/D met `input_snapshot`, `engine_version`, `result_json`, `input_hash`, `output_hash`
-- M29-regelengine als pure functie: `evalRule(rule_code, rule_version, input) → {result, explanation, blocking}`
-- Rule-catalogus tabel met versies
-- `m29_rule_check` records per scenario
-
-**Belangrijk:** stub is duidelijk gemarkeerd als niet-productie. Productie-engine (Uniec3/Vabi) wordt door enterprise-partij ingeplugd via dezelfde interface.
+- Geen wijziging in andere modules' inhoudelijke taken (alleen hergroepering).
+- Geen verandering aan datamodel van opnames/rapporten.
+- Geen TestFlight-automatisering — blijft handmatig.
 
 ---
 
-### Fase 5 — Rapportage & wijzigingsverzoeken
-
-**Deliverables**
-- Concept-rapport-generatie (PDF, Lovable-side, server-rendered)
-- `report_version`, `document_hash`, hash-verificatie bij download
-- Wijzigingsverzoeken-flow (adviseur → kwaliteitscommissie → goedkeuren/afkeuren/aanpassen)
-- Definitief rapport = bevroren PDF + hash-chain in audit
-- Bewonersportaal: 11-staps statusweergave + download definitief rapport
-
----
-
-### Fase 6 — Kwaliteitscommissie + steekproef
-
-**Deliverables**
-- Kwaliteitscommissie-queue: openstaande plannen, M29-rule-check overzicht per plan, beslismoment
-- Steekproefmodule: willekeurige selectie (configureerbaar percentage), controleformulier scenario D
-- Verschilanalyse D vs C, herstelpunten-registratie
-- Alle beslissingen in append-only audit
-
----
-
-### Fase 7 — Uitvoering & subsidiebewijs (light)
-
-**Deliverables**
-- Quotation-validatie: offerte vs maatregelencatalogus + m² uit rapport
-- Uitvoeringsbewijs: factuur-upload, foto's, certificaten
-- Scenario C (uitgevoerd) berekening + definitieve M29-status
-- Subsidie-indicatie (geen echte uitbetaling, geen koppeling provinciale financiën)
-
-**Buiten scope:** echte betalingsstromen, koppeling provincie-grootboek, DB4/DB5 financieel-detail.
-
----
-
-### Fase 8 — Audit-export & overdracht
-
-**Deliverables**
-- Audit-replay export per objectdossier (JSON + PDF)
-- API-contract-documentatie (OpenAPI) van alle endpoints
-- Datamodel-export (ERD + schema.sql) gereed voor migratie naar 9 Azure-instances
-- Overdrachtdocument voor enterprise-partij: wat is gebouwd, welke interfaces zijn waar, welke stubs vervangen moeten worden
-
----
-
-## Wat de winnende ontwikkelpartij hierna doet
-
-1. Code-export via GitHub naar eigen Azure-tenant
-2. Postgres-schema's splitsen in 9 Azure Database for PostgreSQL-instances achter Azure API Management
-3. Supabase Auth → Entra ID B2C met iDIN/eHerkenning broker
-4. NTA 8800 stub vervangen door gecertificeerde engine (Uniec3/Vabi)
-5. Native iOS-app bouwen met LiDAR/RoomPlan + ACK 1–5 sync tegen bestaande API
-6. SIEM, Key Vault CMK per DB, WORM-storage voor audit
-7. BIO2/ISO27001-certificeringstraject
-
----
-
-## Aandachtspunten
-
-- **Stub-rekenkern mag nooit als productie worden ingezet** — duidelijk in UI markeren ("indicatieve berekening, niet NTA 8800-gecertificeerd")
-- **Geen echte persoonsgegevens van bewoners** in MVP 0 — alleen testdata of pseudonimisering
-- **DPIA + verwerkersovereenkomst** met Lovable/Supabase nodig zodra echte persoonsgegevens worden gebruikt (ook in pilot)
-- **Fase-volgorde is hard:** Fase 1–2 zijn fundament, alles erna bouwt erop. Niet parallelliseren over fases 1–2.
-
----
-
-Akkoord om met **Fase 1 (Foundation)** te beginnen, of wil je eerst nog scope-aanpassingen doorvoeren?
+Akkoord om dit zo uit te voeren? Of wil je eerst andere modules toevoegen/splitsen voordat ik de migratie schrijf?
