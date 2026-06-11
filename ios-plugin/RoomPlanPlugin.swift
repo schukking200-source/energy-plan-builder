@@ -7,7 +7,7 @@ import CoreImage
 
 @available(iOS 16.0, *)
 @objc(RoomPlanPlugin)
-public class RoomPlanPlugin: CAPPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegate {
+public class RoomPlanPlugin: CAPPlugin, RoomCaptureSessionDelegate {
     
     private var captureSession: RoomCaptureSession?
     private var captureView: RoomCaptureView?
