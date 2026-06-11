@@ -145,6 +145,12 @@ function NewIntake() {
 
       // LiDAR-scan upload (optioneel) — pad: {user_id}/{measurement_id}/{filename}
       if (scanFile) {
+        const guard = validateScanFile(scanFile);
+        if (guard) {
+          toast.error(guard.message);
+          setSubmitting(false);
+          return;
+        }
         const ext = scanFile.name.split(".").pop()?.toLowerCase() ?? "bin";
         const path = `${user.id}/${row.id}/scan.${ext}`;
         const { error: upErr } = await supabase.storage
