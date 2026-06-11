@@ -102,19 +102,20 @@ public class RoomPlanPlugin: CAPPlugin, RoomCaptureSessionDelegate {
             return
         }
         
-        DispatchQueue.main.async {
+        Task {
             do {
-                let room = try CapturedRoom(from: data)
-                
+                let roomBuilder = RoomBuilder(options: [.beautifyObjects])
+                let room = try await roomBuilder.capturedRoom(from: data)
+
                 // Calculate total area
                 var totalArea: Float = 0
                 for floor in room.floors {
                     totalArea += floor.dimensions.x * floor.dimensions.z
                 }
-                
+
                 // Build structured room data
                 var scannedRooms: [[String: Any]] = []
-                
+
                 if #available(iOS 17.0, *) {
                     // iOS 17+ has individual room sections
                     for (index, section) in room.sections.enumerated() {
@@ -127,7 +128,7 @@ public class RoomPlanPlugin: CAPPlugin, RoomCaptureSessionDelegate {
                             "width": String(format: "%.2f", abs(section.boundingBox.max.z - section.boundingBox.min.z)),
                             "height": String(format: "%.2f", abs(section.boundingBox.max.y - section.boundingBox.min.y)),
                         ]
-                        
+
                         // Collect windows and doors for this section
                         var windows: [[String: Any]] = []
                         for (wIdx, window) in room.windows.enumerated() {
@@ -164,7 +165,7 @@ public class RoomPlanPlugin: CAPPlugin, RoomCaptureSessionDelegate {
                         "width": String(format: "%.2f", room.floors.first?.dimensions.z ?? 0),
                         "height": String(format: "%.2f", room.walls.first?.dimensions.y ?? 2.6),
                     ]
-                    
+
                     var windows: [[String: Any]] = []
                     for (wIdx, window) in room.windows.enumerated() {
                         windows.append([
@@ -185,14 +186,14 @@ public class RoomPlanPlugin: CAPPlugin, RoomCaptureSessionDelegate {
                     singleRoom["windows"] = windows
                     scannedRooms.append(singleRoom)
                 }
-                
+
                 // Export USDZ
                 let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("floorplan.usdz")
                 try room.export(to: tempURL)
                 let usdzData = try Data(contentsOf: tempURL)
                 let base64 = usdzData.base64EncodedString()
-                
-                self.savedCall?.resolve([
+
+                let result: [String: Any] = [
                     "floorPlanData": base64,
                     "mimeType": "model/vnd.usdz+zip",
                     "area": totalArea,
@@ -200,12 +201,18 @@ public class RoomPlanPlugin: CAPPlugin, RoomCaptureSessionDelegate {
                     "rooms": scannedRooms,
                     "totalWindows": room.windows.count,
                     "totalDoors": room.doors.count,
-                ])
+                ]
+
+                DispatchQueue.main.async {
+                    self.savedCall?.resolve(result)
+                    self.cleanup()
+                }
             } catch {
-                self.savedCall?.reject("Failed to process room data: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.savedCall?.reject("Failed to process room data: \(error.localizedDescription)")
+                    self.cleanup()
+                }
             }
-            
-            self.cleanup()
         }
     }
     
@@ -214,40 +221,28 @@ public class RoomPlanPlugin: CAPPlugin, RoomCaptureSessionDelegate {
     @available(iOS 17.0, *)
     private func labelForSection(_ section: CapturedRoom.Section, index: Int) -> String {
         // Try to derive a sensible name from the section label
-        if let label = section.label {
-            switch label {
-            case .livingRoom: return "Woonkamer"
-            case .bedroom: return "Slaapkamer \(index + 1)"
-            case .bathroom: return "Badkamer"
-            case .kitchen: return "Keuken"
-            case .diningRoom: return "Eetkamer"
-            case .laundryRoom: return "Wasruimte"
-            case .garage: return "Garage"
-            case .hallway: return "Hal"
-            case .other: return "Ruimte \(index + 1)"
-            @unknown default: return "Ruimte \(index + 1)"
-            }
+        switch section.label {
+        case .livingRoom: return "Woonkamer"
+        case .bedroom: return "Slaapkamer \(index + 1)"
+        case .bathroom: return "Badkamer"
+        case .kitchen: return "Keuken"
+        case .diningRoom: return "Eetkamer"
+        case .unidentified: return "Ruimte \(index + 1)"
+        @unknown default: return "Ruimte \(index + 1)"
         }
-        return "Ruimte \(index + 1)"
     }
     
     @available(iOS 17.0, *)
     private func typeForSection(_ section: CapturedRoom.Section) -> String {
-        if let label = section.label {
-            switch label {
-            case .livingRoom: return "woonkamer"
-            case .bedroom: return "slaapkamer"
-            case .bathroom: return "badkamer"
-            case .kitchen: return "keuken"
-            case .diningRoom: return "woonkamer"
-            case .laundryRoom: return "wasruimte"
-            case .garage: return "garage"
-            case .hallway: return "hal"
-            case .other: return "woonkamer"
-            @unknown default: return "woonkamer"
-            }
+        switch section.label {
+        case .livingRoom: return "woonkamer"
+        case .bedroom: return "slaapkamer"
+        case .bathroom: return "badkamer"
+        case .kitchen: return "keuken"
+        case .diningRoom: return "woonkamer"
+        case .unidentified: return "woonkamer"
+        @unknown default: return "woonkamer"
         }
-        return "woonkamer"
     }
     
     private func isInBounds(_ point: simd_float3, bounds: (min: simd_float3, max: simd_float3)) -> Bool {
