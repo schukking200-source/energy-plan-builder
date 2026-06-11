@@ -107,27 +107,44 @@ public class RoomPlanPlugin: CAPPlugin, RoomCaptureSessionDelegate {
                 let roomBuilder = RoomBuilder(options: [.beautifyObjects])
                 let room = try await roomBuilder.capturedRoom(from: data)
 
-                // Calculate total area
+                // Calculate total area (floors API is iOS 17+; fall back to wall-based estimate on iOS 16)
                 var totalArea: Float = 0
-                for floor in room.floors {
-                    totalArea += floor.dimensions.x * floor.dimensions.z
+                var fallbackLength: Float = 0
+                var fallbackWidth: Float = 0
+                let fallbackHeight: Float = room.walls.first?.dimensions.y ?? 2.6
+
+                if #available(iOS 17.0, *) {
+                    for floor in room.floors {
+                        totalArea += floor.dimensions.x * floor.dimensions.z
+                    }
+                    fallbackLength = room.floors.first?.dimensions.x ?? 0
+                    fallbackWidth = room.floors.first?.dimensions.z ?? 0
+                } else {
+                    // Rough estimate from wall bounding box
+                    var minX: Float = .greatestFiniteMagnitude
+                    var maxX: Float = -.greatestFiniteMagnitude
+                    var minZ: Float = .greatestFiniteMagnitude
+                    var maxZ: Float = -.greatestFiniteMagnitude
+                    for wall in room.walls {
+                        let p = wall.transform.columns.3
+                        minX = min(minX, p.x); maxX = max(maxX, p.x)
+                        minZ = min(minZ, p.z); maxZ = max(maxZ, p.z)
+                    }
+                    fallbackLength = max(0, maxX - minX)
+                    fallbackWidth = max(0, maxZ - minZ)
+                    totalArea = fallbackLength * fallbackWidth
                 }
 
                 // Build structured room data
                 var scannedRooms: [[String: Any]] = []
 
                 if #available(iOS 17.0, *) {
-                    // iOS 17+ has individual room sections
-                    let fallbackLength = room.floors.first?.dimensions.x ?? 0
-                    let fallbackWidth = room.floors.first?.dimensions.z ?? 0
-                    let fallbackHeight = room.walls.first?.dimensions.y ?? 2.6
-
                     for (index, section) in room.sections.enumerated() {
                         var roomDict: [String: Any] = [
                             "id": "lidar-room-\(index)",
                             "name": self.labelForSection(section, index: index),
                             "type": self.typeForSection(section),
-                            "floor": section.story ?? 0,
+                            "floor": section.story,
                             "length": String(format: "%.2f", fallbackLength),
                             "width": String(format: "%.2f", fallbackWidth),
                             "height": String(format: "%.2f", fallbackHeight),
@@ -158,15 +175,15 @@ public class RoomPlanPlugin: CAPPlugin, RoomCaptureSessionDelegate {
                         scannedRooms.append(roomDict)
                     }
                 } else {
-                    // iOS 16: single room, use overall dimensions
+                    // iOS 16: single room, use estimated dimensions
                     var singleRoom: [String: Any] = [
                         "id": "lidar-room-0",
                         "name": "Gescande ruimte",
                         "type": "woonkamer",
                         "floor": 0,
-                        "length": String(format: "%.2f", room.floors.first?.dimensions.x ?? 0),
-                        "width": String(format: "%.2f", room.floors.first?.dimensions.z ?? 0),
-                        "height": String(format: "%.2f", room.walls.first?.dimensions.y ?? 2.6),
+                        "length": String(format: "%.2f", fallbackLength),
+                        "width": String(format: "%.2f", fallbackWidth),
+                        "height": String(format: "%.2f", fallbackHeight),
                     ]
 
                     var windows: [[String: Any]] = []
