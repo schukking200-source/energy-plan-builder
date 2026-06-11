@@ -204,15 +204,17 @@ function NewIntake() {
                 lidar_point_cloud_ref: path,
                 scan_size_bytes: scanFile.size,
                 roomplan_json: lidarResult
-                  ? {
-                      source: "roomplan_native",
-                      area: lidarResult.area,
-                      roomCount: lidarResult.roomCount,
-                      totalWindows: lidarResult.totalWindows,
-                      totalDoors: lidarResult.totalDoors,
-                      rooms: lidarResult.rooms,
-                      captured_at: new Date().toISOString(),
-                    }
+                  ? (JSON.parse(
+                      JSON.stringify({
+                        source: "roomplan_native",
+                        area: lidarResult.area ?? null,
+                        roomCount: lidarResult.roomCount ?? null,
+                        totalWindows: lidarResult.totalWindows ?? null,
+                        totalDoors: lidarResult.totalDoors ?? null,
+                        rooms: lidarResult.rooms ?? [],
+                        captured_at: new Date().toISOString(),
+                      })
+                    ) as never)
                   : null,
               })
               .eq("id", row.id);
