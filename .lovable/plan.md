@@ -1,84 +1,50 @@
 
-# Roadmap herstructureren per module — LiDAR eerst
+## 1. Roadmap-tabel uitbreiden (data-migratie, geen schemawijziging)
 
-## Waarom
+Bestaande `roadmap_task`-rijen met `module = 'go_live'` worden opgesplitst in vier nieuwe modules. Schema verandert niet — alleen `module`, `module_label`, `module_order`, `is_golive_blocker`, `is_project_blocker` van bestaande/nieuwe rijen.
 
-Huidige roadmap is per **fase** (1–9, lineair). Jij wil per **module/blok** kunnen sturen en opleveren, met **LiDAR als harde voorwaarde**: lukt LiDAR op iPad niet → hele project stopt. Dat moet visueel bovenaan staan, niet verstopt in fase 3.
+Nieuwe modules (module_order 90–93, blijven onderaan):
 
-## Wat ik bouw
+| key | label | doel |
+|---|---|---|
+| `golive_infra` | 9a Infrastructuur (Azure) | Landingszone, Postgres, Key Vault, Blob, Monitor, migratiescript |
+| `golive_identity` | 9b Identiteit (Entra B2C) | Tenant, MFA, rolmapping, cutover auth |
+| `golive_compliance` | 9c Compliance & ISMS | ISMS-docs, DPIA, VWO's, pentest, logging/retentie |
+| `golive_cutover` | 9d Cutover | DNS, downtime-window, rollback, dataoverdracht |
 
-### 1. Nieuwe groepering: "module" naast "phase"
+Per module ~4–6 taken (`type='enterprise'`, `is_golive_blocker=true`). Bestaande Azure/BIO2-taken uit `go_live` worden gemapt naar de juiste sub-module; geen taken verloren. Eén SQL-migratie via supabase--migration met `UPDATE` + `INSERT` statements.
 
-Tabel `roadmap_task` krijgt één extra kolom:
-- `module` (text) — bv. `"lidar"`, `"foundation"`, `"object"`, `"opname"`, `"rekenkern"`, `"rapportage"`, `"kwaliteit"`, `"uitvoering"`, `"audit"`, `"go_live"`
-- `module_label` (text) — leesbaar label
-- `module_order` (smallint) — volgorde modules
-- `is_project_blocker` (bool) — strenger dan `is_golive_blocker`: zonder dit stopt het hele project (nu: alleen LiDAR-module)
+## 2. Document `.lovable/ISO27001_MIGRATIE.md`
 
-Bestaande `phase`-data blijft staan (voor history), maar UI groepeert voortaan op module.
+Nieuw bestand, ~250 regels, secties:
 
-### 2. Module 0 — LiDAR / iPad (NIEUW, bovenaan)
+1. **Scope & doel** — wat valt onder ISMS, wat niet
+2. **Wat blijft in Lovable** — broncode, migraties, plugin (zoals eerder beschreven)
+3. **Wat verhuist naar Azure** — tabel per onderdeel (DB, Auth, Storage, Secrets, Functies, Logging, Backups, Email) met:
+   - huidige locatie in Lovable Cloud
+   - target Azure-service (concreet: Azure Database for PostgreSQL Flexible Server, Entra External ID, Blob Storage met CMK, Key Vault, Container Apps, Log Analytics)
+   - waarom (ISO/BIO2-control referentie: A.8.24, A.5.17, A.8.15, etc.)
+4. **Datamapping** — per tabel (`id_profiles`, `in_measurement`, `aud_events`, `user_roles`, `roadmap_task`) classificatie + retentie + bewaarplaats
+5. **ISMS-deliverables** — checklist: SoA, risicoanalyse, DPIA, VWO's, pentest, incident response, toegangsmatrix, leveranciersbeoordeling
+6. **Cutover-draaiboek** — pg_dump → Azure restore, storage sync, DNS-switch, rollback
+7. **Verantwoordelijkheden** — jij vs. enterprise-partij vs. Lovable
+8. **Verwijzing naar roadmap** — link naar modules 9a–9d
 
-Wordt als allereerste blok toegevoegd met `is_project_blocker=true`. Taken:
+## 3. Volgorde van uitvoering
 
-```text
-[ ] Apple Developer-account actief (€99/jr)
-[ ] Xcode 26.2 + iOS 26.5 device support gedownload
-[ ] iPad Developer Mode aan + getrust
-[ ] cap add ios + cap sync ios uitgevoerd
-[ ] RoomPlanPlugin.swift + .m toegevoegd aan Xcode-target
-[ ] Bridging header aangemaakt
-[ ] Camera-permissie in Info.plist
-[ ] Signing team + bundle-id ingesteld
-[ ] App installeert op fysieke iPad via kabel
-[ ] RoomPlan-scan opent + voltooit
-[ ] USDZ + JSON upload naar Supabase Storage werkt
-[ ] Eerste end-to-end test: scan → opname → ingediend
-[ ] TestFlight-build live voor 1 externe tester
-```
-
-Status van deze module bepaalt of de andere modules überhaupt zin hebben — duidelijk in UI markeren met rode banner: *"Zonder werkende LiDAR-pipeline stopt het project. Eerst Module 0 afronden."*
-
-### 3. Module-mapping bestaande taken
-
-| Bestaande fase           | Nieuwe module       |
-|--------------------------|---------------------|
-| 1 Foundation             | `foundation`        |
-| 2 Object & relaties      | `object`            |
-| 3 Opname-flow (web)      | `opname` (web-fallback, LiDAR-stukken splitsen naar `lidar`) |
-| 4 Rekenkern + M29        | `rekenkern`         |
-| 5 Rapportage             | `rapportage`        |
-| 6 Kwaliteit + steekproef | `kwaliteit`         |
-| 7 Uitvoering & subsidie  | `uitvoering`        |
-| 8 Audit-export           | `audit`             |
-| 9 Go-live blockers Azure | `go_live`           |
-
-### 4. UI-aanpassing `/_authenticated/roadmap`
-
-- Groepering op `module_order`, niet meer op `phase`.
-- Bovenaan: prominente **"Project-blockers"** kaart die `is_project_blocker` items toont (LiDAR-module). Rood/dik, niet te missen.
-- Per module: voortgangsbalk + status-pill (`niet gestart` / `bezig` / `klaar` / `geblokkeerd`).
-- Optioneel filter: "Toon alleen open taken" / "Toon alleen MVP 0".
-- Modulekop klikbaar = inklapbaar, zodat één module tegelijk in focus kan.
-
-### 5. Volgorde-advies in UI
-
-Banner bovenaan: *"Aanbevolen levering: Module 0 (LiDAR) → Module Foundation → Object → Opname → …"*. Modules onder Module 0 blijven zichtbaar maar krijgen subtiel "wacht op Module 0"-label tot LiDAR groen is.
-
-## Technische uitvoering
-
-1. **Migratie**: `ALTER TABLE roadmap_task ADD COLUMN module text, module_label text, module_order smallint, is_project_blocker bool default false;`
-2. **Data-migratie**: bestaande rijen mappen naar module (zie tabel hierboven). LiDAR-gerelateerde taken uit fase 3 verhuizen naar module `lidar` met `is_project_blocker=true`.
-3. **Seed Module 0**: 13 taken bovenstaand, allen `is_project_blocker=true`, `type='mvp0'`.
-4. **UI**: `src/routes/_authenticated/roadmap.tsx` herschrijven — groep op module, project-blocker banner, inklapbare secties.
-5. **`.lovable/plan.md`** bijwerken: module-indeling als nieuwe canonical structuur.
+1. `supabase--migration` — data-update voor modules 9a–9d (geen schemawijziging)
+2. Bestand `.lovable/ISO27001_MIGRATIE.md` schrijven
+3. Korte verwijzing toevoegen aan `.lovable/plan.md` (1 regel onder bestaande sectie)
 
 ## Wat NIET in deze stap
 
-- Geen wijziging in andere modules' inhoudelijke taken (alleen hergroepering).
-- Geen verandering aan datamodel van opnames/rapporten.
-- Geen TestFlight-automatisering — blijft handmatig.
+- Geen UI-wijziging aan `/roadmap` — de bestaande module-rendering pakt de nieuwe modules automatisch op (groepering is dynamisch op `module_order`).
+- Geen schemawijziging aan `roadmap_task`.
+- Geen Azure-resources aanmaken; alleen documentatie en taken.
+- Geen verandering aan bestaande taken in modules 0–8.
 
----
+## Technische details
 
-Akkoord om dit zo uit te voeren? Of wil je eerst andere modules toevoegen/splitsen voordat ik de migratie schrijf?
+- Migratie gebruikt `UPDATE roadmap_task SET module=..., module_label=..., module_order=... WHERE module='go_live' AND title ILIKE '%...%'` per categorie, plus `INSERT` voor nieuwe taken die nog niet bestaan.
+- `is_golive_blocker=true` blijft; `is_project_blocker=false` (alleen Module 0/LiDAR is project-blocker).
+- Module_order: 90 (infra), 91 (identity), 92 (compliance), 93 (cutover) — zit ná module 8 (audit, order 80) en houdt de visuele volgorde.
