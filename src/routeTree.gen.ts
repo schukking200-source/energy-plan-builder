@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedIntakeIndexRouteImport } from './routes/_authenticated/intake.index'
+import { Route as ApiPublicDevLoginRouteImport } from './routes/api/public/dev-login'
 import { Route as AuthenticatedIntakeNewRouteImport } from './routes/_authenticated/intake.new'
 import { Route as AuthenticatedIntakeIdRouteImport } from './routes/_authenticated/intake.$id'
 import { Route as AuthenticatedDashboardSteekproefRouteImport } from './routes/_authenticated/dashboard.steekproef'
@@ -46,6 +47,11 @@ const AuthenticatedIntakeIndexRoute =
     path: '/intake/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicDevLoginRoute = ApiPublicDevLoginRouteImport.update({
+  id: '/api/public/dev-login',
+  path: '/api/public/dev-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedIntakeNewRoute = AuthenticatedIntakeNewRouteImport.update({
   id: '/intake/new',
   path: '/intake/new',
@@ -91,6 +97,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/steekproef': typeof AuthenticatedDashboardSteekproefRoute
   '/intake/$id': typeof AuthenticatedIntakeIdRoute
   '/intake/new': typeof AuthenticatedIntakeNewRoute
+  '/api/public/dev-login': typeof ApiPublicDevLoginRoute
   '/intake/': typeof AuthenticatedIntakeIndexRoute
 }
 export interface FileRoutesByTo {
@@ -103,6 +110,7 @@ export interface FileRoutesByTo {
   '/dashboard/steekproef': typeof AuthenticatedDashboardSteekproefRoute
   '/intake/$id': typeof AuthenticatedIntakeIdRoute
   '/intake/new': typeof AuthenticatedIntakeNewRoute
+  '/api/public/dev-login': typeof ApiPublicDevLoginRoute
   '/intake': typeof AuthenticatedIntakeIndexRoute
 }
 export interface FileRoutesById {
@@ -117,6 +125,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/steekproef': typeof AuthenticatedDashboardSteekproefRoute
   '/_authenticated/intake/$id': typeof AuthenticatedIntakeIdRoute
   '/_authenticated/intake/new': typeof AuthenticatedIntakeNewRoute
+  '/api/public/dev-login': typeof ApiPublicDevLoginRoute
   '/_authenticated/intake/': typeof AuthenticatedIntakeIndexRoute
 }
 export interface FileRouteTypes {
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/dashboard/steekproef'
     | '/intake/$id'
     | '/intake/new'
+    | '/api/public/dev-login'
     | '/intake/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
     | '/dashboard/steekproef'
     | '/intake/$id'
     | '/intake/new'
+    | '/api/public/dev-login'
     | '/intake'
   id:
     | '__root__'
@@ -156,6 +167,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/steekproef'
     | '/_authenticated/intake/$id'
     | '/_authenticated/intake/new'
+    | '/api/public/dev-login'
     | '/_authenticated/intake/'
   fileRoutesById: FileRoutesById
 }
@@ -163,6 +175,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicDevLoginRoute: typeof ApiPublicDevLoginRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -201,6 +214,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/intake/'
       preLoaderRoute: typeof AuthenticatedIntakeIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/dev-login': {
+      id: '/api/public/dev-login'
+      path: '/api/public/dev-login'
+      fullPath: '/api/public/dev-login'
+      preLoaderRoute: typeof ApiPublicDevLoginRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/intake/new': {
       id: '/_authenticated/intake/new'
@@ -289,7 +309,18 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicDevLoginRoute: ApiPublicDevLoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
