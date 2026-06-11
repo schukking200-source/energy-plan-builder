@@ -17,8 +17,10 @@ import {
 import { toast } from "sonner";
 import { logAudit } from "@/lib/audit";
 import { z } from "zod";
-import { Loader2, MapPin, Upload } from "lucide-react";
+import { Loader2, MapPin, Upload, Smartphone } from "lucide-react";
 import { ALLOWED_SCAN_EXTENSIONS, MAX_SCAN_BYTES, validateScanFile } from "@/lib/upload-validation";
+import { Capacitor } from "@capacitor/core";
+import RoomPlan, { type RoomPlanResult } from "@/plugins/RoomPlanPlugin";
 
 export const Route = createFileRoute("/_authenticated/intake/new")({
   head: () => ({ meta: [{ title: "Nieuwe opname — Isolatieplan Tool" }] }),
@@ -54,6 +56,9 @@ function NewIntake() {
   const [submitting, setSubmitting] = useState(false);
   const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
   const [scanFile, setScanFile] = useState<File | null>(null);
+  const [lidarResult, setLidarResult] = useState<RoomPlanResult | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const isNative = Capacitor.isNativePlatform();
 
   function captureGeo() {
     if (!navigator.geolocation) {
@@ -68,6 +73,39 @@ function NewIntake() {
       () => toast.error("Locatie kon niet worden opgehaald"),
       { enableHighAccuracy: true, timeout: 8000 }
     );
+  }
+
+  async function startLidarScan() {
+    if (!isNative) {
+      toast.error("LiDAR werkt alleen in de native iPad-app (Capacitor).");
+      return;
+    }
+    setScanning(true);
+    try {
+      const { available } = await RoomPlan.isAvailable();
+      if (!available) {
+        toast.error("Dit apparaat heeft geen LiDAR-sensor.");
+        return;
+      }
+      const result = await RoomPlan.startScan();
+      setLidarResult(result);
+      // Converteer base64 USDZ → File zodat bestaande upload-flow werkt
+      const bin = atob(result.floorPlanData);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const file = new File([bytes], "roomplan.usdz", { type: result.mimeType });
+      setScanFile(file);
+      const parts: string[] = [];
+      if (result.area) parts.push(`${result.area.toFixed(1)} m²`);
+      if (result.roomCount) parts.push(`${result.roomCount} ruimte(s)`);
+      if (result.totalWindows) parts.push(`${result.totalWindows} ramen`);
+      if (result.totalDoors) parts.push(`${result.totalDoors} deuren`);
+      toast.success(`Scan voltooid! ${parts.join(", ")}`);
+    } catch (e) {
+      toast.error((e as Error).message ?? "LiDAR-scan mislukt");
+    } finally {
+      setScanning(false);
+    }
   }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>, finalize: boolean) {
@@ -157,17 +195,30 @@ function NewIntake() {
           .from("lidar-scans")
           .upload(path, scanFile, { upsert: false, contentType: scanFile.type || undefined });
 
-        if (upErr) {
-          toast.error(`Scan upload mislukt: ${upErr.message}`);
-        } else {
-          await supabase
-            .from("in_measurement")
-            .update({
-              lidar_point_cloud_ref: path,
-              scan_size_bytes: scanFile.size,
-            })
-            .eq("id", row.id);
-        }
+          if (upErr) {
+            toast.error(`Scan upload mislukt: ${upErr.message}`);
+          } else {
+            await supabase
+              .from("in_measurement")
+              .update({
+                lidar_point_cloud_ref: path,
+                scan_size_bytes: scanFile.size,
+                roomplan_json: lidarResult
+                  ? (JSON.parse(
+                      JSON.stringify({
+                        source: "roomplan_native",
+                        area: lidarResult.area ?? null,
+                        roomCount: lidarResult.roomCount ?? null,
+                        totalWindows: lidarResult.totalWindows ?? null,
+                        totalDoors: lidarResult.totalDoors ?? null,
+                        rooms: lidarResult.rooms ?? [],
+                        captured_at: new Date().toISOString(),
+                      })
+                    ) as never)
+                  : null,
+              })
+              .eq("id", row.id);
+          }
       }
 
       await logAudit(
@@ -323,6 +374,34 @@ function NewIntake() {
                 <div className="grid gap-2">
                   <Label htmlFor="scan_format">Bestandsformaat</Label>
                   <Input id="scan_format" name="scan_format" placeholder="usdz, ply, obj, e57…" maxLength={16} />
+                </div>
+                <div className="grid gap-2 md:col-span-2">
+                  <Label>📱 Native iPad LiDAR-scan</Label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      onClick={startLidarScan}
+                      disabled={!isNative || scanning}
+                      variant={isNative ? "default" : "outline"}
+                    >
+                      {scanning ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Smartphone className="mr-2 h-4 w-4" />
+                      )}
+                      {isNative ? "Start RoomPlan-scan" : "Alleen in iPad-app"}
+                    </Button>
+                    {lidarResult && (
+                      <span className="text-xs text-muted-foreground">
+                        ✓ {lidarResult.area?.toFixed(1)} m² · {lidarResult.roomCount} ruimte(s) ·{" "}
+                        {lidarResult.totalWindows} ramen
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Werkt op iPad Pro met LiDAR via de native Capacitor-wrapper. Resultaat
+                    wordt opgeslagen als USDZ + gestructureerde JSON (ruimtes, ramen, deuren).
+                  </p>
                 </div>
                 <div className="grid gap-2 md:col-span-2">
                   <Label htmlFor="scan_file">Scan-bestand</Label>
