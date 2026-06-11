@@ -118,21 +118,26 @@ public class RoomPlanPlugin: CAPPlugin, RoomCaptureSessionDelegate {
 
                 if #available(iOS 17.0, *) {
                     // iOS 17+ has individual room sections
+                    let fallbackLength = room.floors.first?.dimensions.x ?? 0
+                    let fallbackWidth = room.floors.first?.dimensions.z ?? 0
+                    let fallbackHeight = room.walls.first?.dimensions.y ?? 2.6
+
                     for (index, section) in room.sections.enumerated() {
                         var roomDict: [String: Any] = [
                             "id": "lidar-room-\(index)",
                             "name": self.labelForSection(section, index: index),
                             "type": self.typeForSection(section),
                             "floor": section.story ?? 0,
-                            "length": String(format: "%.2f", section.center.x > 0 ? abs(section.boundingBox.max.x - section.boundingBox.min.x) : 0),
-                            "width": String(format: "%.2f", abs(section.boundingBox.max.z - section.boundingBox.min.z)),
-                            "height": String(format: "%.2f", abs(section.boundingBox.max.y - section.boundingBox.min.y)),
+                            "length": String(format: "%.2f", fallbackLength),
+                            "width": String(format: "%.2f", fallbackWidth),
+                            "height": String(format: "%.2f", fallbackHeight),
                         ]
 
-                        // Collect windows and doors for this section
+                        // CapturedRoom.Section does not expose bounding boxes, so keep openings once
+                        // on the first scanned section instead of trying to spatially filter them.
                         var windows: [[String: Any]] = []
-                        for (wIdx, window) in room.windows.enumerated() {
-                            if self.isInBounds(window.center, bounds: section.boundingBox) {
+                        if index == 0 {
+                            for (wIdx, window) in room.windows.enumerated() {
                                 windows.append([
                                     "id": "lidar-w-\(index)-\(wIdx)",
                                     "type": "raam",
@@ -140,9 +145,7 @@ public class RoomPlanPlugin: CAPPlugin, RoomCaptureSessionDelegate {
                                     "height": String(format: "%.0f", window.dimensions.y * 100),
                                 ])
                             }
-                        }
-                        for (dIdx, door) in room.doors.enumerated() {
-                            if self.isInBounds(door.center, bounds: section.boundingBox) {
+                            for (dIdx, door) in room.doors.enumerated() {
                                 windows.append([
                                     "id": "lidar-d-\(index)-\(dIdx)",
                                     "type": "deur",
