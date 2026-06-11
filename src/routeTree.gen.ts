@@ -13,6 +13,8 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedIntakeIndexRouteImport } from './routes/_authenticated/intake.index'
+import { Route as AuthenticatedIntakeNewRouteImport } from './routes/_authenticated/intake.new'
 import { Route as AuthenticatedDashboardSteekproefRouteImport } from './routes/_authenticated/dashboard.steekproef'
 import { Route as AuthenticatedDashboardKwaliteitRouteImport } from './routes/_authenticated/dashboard.kwaliteit'
 import { Route as AuthenticatedDashboardAdviseurRouteImport } from './routes/_authenticated/dashboard.adviseur'
@@ -34,6 +36,17 @@ const IndexRoute = IndexRouteImport.update({
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedIntakeIndexRoute =
+  AuthenticatedIntakeIndexRouteImport.update({
+    id: '/intake/',
+    path: '/intake/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedIntakeNewRoute = AuthenticatedIntakeNewRouteImport.update({
+  id: '/intake/new',
+  path: '/intake/new',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDashboardSteekproefRoute =
@@ -62,6 +75,8 @@ export interface FileRoutesByFullPath {
   '/dashboard/adviseur': typeof AuthenticatedDashboardAdviseurRoute
   '/dashboard/kwaliteit': typeof AuthenticatedDashboardKwaliteitRoute
   '/dashboard/steekproef': typeof AuthenticatedDashboardSteekproefRoute
+  '/intake/new': typeof AuthenticatedIntakeNewRoute
+  '/intake/': typeof AuthenticatedIntakeIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +85,8 @@ export interface FileRoutesByTo {
   '/dashboard/adviseur': typeof AuthenticatedDashboardAdviseurRoute
   '/dashboard/kwaliteit': typeof AuthenticatedDashboardKwaliteitRoute
   '/dashboard/steekproef': typeof AuthenticatedDashboardSteekproefRoute
+  '/intake/new': typeof AuthenticatedIntakeNewRoute
+  '/intake': typeof AuthenticatedIntakeIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +97,8 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/adviseur': typeof AuthenticatedDashboardAdviseurRoute
   '/_authenticated/dashboard/kwaliteit': typeof AuthenticatedDashboardKwaliteitRoute
   '/_authenticated/dashboard/steekproef': typeof AuthenticatedDashboardSteekproefRoute
+  '/_authenticated/intake/new': typeof AuthenticatedIntakeNewRoute
+  '/_authenticated/intake/': typeof AuthenticatedIntakeIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -90,6 +109,8 @@ export interface FileRouteTypes {
     | '/dashboard/adviseur'
     | '/dashboard/kwaliteit'
     | '/dashboard/steekproef'
+    | '/intake/new'
+    | '/intake/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -98,6 +119,8 @@ export interface FileRouteTypes {
     | '/dashboard/adviseur'
     | '/dashboard/kwaliteit'
     | '/dashboard/steekproef'
+    | '/intake/new'
+    | '/intake'
   id:
     | '__root__'
     | '/'
@@ -107,6 +130,8 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/adviseur'
     | '/_authenticated/dashboard/kwaliteit'
     | '/_authenticated/dashboard/steekproef'
+    | '/_authenticated/intake/new'
+    | '/_authenticated/intake/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -143,6 +168,20 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/intake/': {
+      id: '/_authenticated/intake/'
+      path: '/intake'
+      fullPath: '/intake/'
+      preLoaderRoute: typeof AuthenticatedIntakeIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/intake/new': {
+      id: '/_authenticated/intake/new'
+      path: '/intake/new'
+      fullPath: '/intake/new'
+      preLoaderRoute: typeof AuthenticatedIntakeNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard/steekproef': {
@@ -190,10 +229,14 @@ const AuthenticatedDashboardRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRouteWithChildren
+  AuthenticatedIntakeNewRoute: typeof AuthenticatedIntakeNewRoute
+  AuthenticatedIntakeIndexRoute: typeof AuthenticatedIntakeIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRouteWithChildren,
+  AuthenticatedIntakeNewRoute: AuthenticatedIntakeNewRoute,
+  AuthenticatedIntakeIndexRoute: AuthenticatedIntakeIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
