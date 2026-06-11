@@ -48,3 +48,9 @@ Nieuw bestand, ~250 regels, secties:
 - Migratie gebruikt `UPDATE roadmap_task SET module=..., module_label=..., module_order=... WHERE module='go_live' AND title ILIKE '%...%'` per categorie, plus `INSERT` voor nieuwe taken die nog niet bestaan.
 - `is_golive_blocker=true` blijft; `is_project_blocker=false` (alleen Module 0/LiDAR is project-blocker).
 - Module_order: 90 (infra), 91 (identity), 92 (compliance), 93 (cutover) — zit ná module 8 (audit, order 80) en houdt de visuele volgorde.
+
+---
+
+## Vervolg: ISO27001-migratie
+
+Module 9 (`go_live`) is gesplitst in **9a Infrastructuur**, **9b Identiteit**, **9c Compliance & ISMS** en **9d Cutover**. Volledige toelichting (datamapping, verantwoordelijkheden, cutover-draaiboek) staat in [`.lovable/ISO27001_MIGRATIE.md`](./ISO27001_MIGRATIE.md).
