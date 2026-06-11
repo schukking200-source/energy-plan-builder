@@ -80,6 +80,75 @@ export type Database = {
         }
         Relationships: []
       }
+      in_measurement: {
+        Row: {
+          captured_at: string
+          captured_by: string
+          captured_geo_lat: number | null
+          captured_geo_lng: number | null
+          created_at: string
+          device_meta: Json
+          evidence_level: Database["public"]["Enums"]["evidence_level"]
+          id: string
+          lidar_point_cloud_ref: string | null
+          object_ref: string | null
+          payload: Json
+          roomplan_json: Json | null
+          scan_app: Database["public"]["Enums"]["scan_app"] | null
+          scan_format: string | null
+          scan_size_bytes: number | null
+          snapshot_hash: string | null
+          source: Database["public"]["Enums"]["measurement_source"]
+          status: Database["public"]["Enums"]["measurement_status"]
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          captured_at?: string
+          captured_by: string
+          captured_geo_lat?: number | null
+          captured_geo_lng?: number | null
+          created_at?: string
+          device_meta?: Json
+          evidence_level?: Database["public"]["Enums"]["evidence_level"]
+          id?: string
+          lidar_point_cloud_ref?: string | null
+          object_ref?: string | null
+          payload?: Json
+          roomplan_json?: Json | null
+          scan_app?: Database["public"]["Enums"]["scan_app"] | null
+          scan_format?: string | null
+          scan_size_bytes?: number | null
+          snapshot_hash?: string | null
+          source?: Database["public"]["Enums"]["measurement_source"]
+          status?: Database["public"]["Enums"]["measurement_status"]
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          captured_at?: string
+          captured_by?: string
+          captured_geo_lat?: number | null
+          captured_geo_lng?: number | null
+          created_at?: string
+          device_meta?: Json
+          evidence_level?: Database["public"]["Enums"]["evidence_level"]
+          id?: string
+          lidar_point_cloud_ref?: string | null
+          object_ref?: string | null
+          payload?: Json
+          roomplan_json?: Json | null
+          scan_app?: Database["public"]["Enums"]["scan_app"] | null
+          scan_format?: string | null
+          scan_size_bytes?: number | null
+          snapshot_hash?: string | null
+          source?: Database["public"]["Enums"]["measurement_source"]
+          status?: Database["public"]["Enums"]["measurement_status"]
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           granted_at: string
@@ -129,6 +198,17 @@ export type Database = {
         | "kwaliteitscommissie"
         | "steekproef"
         | "admin"
+      evidence_level: "low" | "medium" | "high"
+      measurement_source: "manual" | "measured" | "inferred" | "lidar_derived"
+      measurement_status: "draft" | "submitted" | "approved" | "rejected"
+      scan_app:
+        | "polycam"
+        | "scaniverse"
+        | "scanner3d_app"
+        | "canvas"
+        | "roomplan_native"
+        | "manual"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -263,6 +343,18 @@ export const Constants = {
         "kwaliteitscommissie",
         "steekproef",
         "admin",
+      ],
+      evidence_level: ["low", "medium", "high"],
+      measurement_source: ["manual", "measured", "inferred", "lidar_derived"],
+      measurement_status: ["draft", "submitted", "approved", "rejected"],
+      scan_app: [
+        "polycam",
+        "scaniverse",
+        "scanner3d_app",
+        "canvas",
+        "roomplan_native",
+        "manual",
+        "other",
       ],
     },
   },
