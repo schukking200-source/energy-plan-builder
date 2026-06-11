@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedIntakeIndexRouteImport } from './routes/_authenticated/intake.index'
 import { Route as AuthenticatedIntakeNewRouteImport } from './routes/_authenticated/intake.new'
+import { Route as AuthenticatedIntakeIdRouteImport } from './routes/_authenticated/intake.$id'
 import { Route as AuthenticatedDashboardSteekproefRouteImport } from './routes/_authenticated/dashboard.steekproef'
 import { Route as AuthenticatedDashboardKwaliteitRouteImport } from './routes/_authenticated/dashboard.kwaliteit'
 import { Route as AuthenticatedDashboardAdviseurRouteImport } from './routes/_authenticated/dashboard.adviseur'
@@ -49,6 +50,11 @@ const AuthenticatedIntakeNewRoute = AuthenticatedIntakeNewRouteImport.update({
   path: '/intake/new',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedIntakeIdRoute = AuthenticatedIntakeIdRouteImport.update({
+  id: '/intake/$id',
+  path: '/intake/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardSteekproefRoute =
   AuthenticatedDashboardSteekproefRouteImport.update({
     id: '/steekproef',
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/adviseur': typeof AuthenticatedDashboardAdviseurRoute
   '/dashboard/kwaliteit': typeof AuthenticatedDashboardKwaliteitRoute
   '/dashboard/steekproef': typeof AuthenticatedDashboardSteekproefRoute
+  '/intake/$id': typeof AuthenticatedIntakeIdRoute
   '/intake/new': typeof AuthenticatedIntakeNewRoute
   '/intake/': typeof AuthenticatedIntakeIndexRoute
 }
@@ -85,6 +92,7 @@ export interface FileRoutesByTo {
   '/dashboard/adviseur': typeof AuthenticatedDashboardAdviseurRoute
   '/dashboard/kwaliteit': typeof AuthenticatedDashboardKwaliteitRoute
   '/dashboard/steekproef': typeof AuthenticatedDashboardSteekproefRoute
+  '/intake/$id': typeof AuthenticatedIntakeIdRoute
   '/intake/new': typeof AuthenticatedIntakeNewRoute
   '/intake': typeof AuthenticatedIntakeIndexRoute
 }
@@ -97,6 +105,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/adviseur': typeof AuthenticatedDashboardAdviseurRoute
   '/_authenticated/dashboard/kwaliteit': typeof AuthenticatedDashboardKwaliteitRoute
   '/_authenticated/dashboard/steekproef': typeof AuthenticatedDashboardSteekproefRoute
+  '/_authenticated/intake/$id': typeof AuthenticatedIntakeIdRoute
   '/_authenticated/intake/new': typeof AuthenticatedIntakeNewRoute
   '/_authenticated/intake/': typeof AuthenticatedIntakeIndexRoute
 }
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/dashboard/adviseur'
     | '/dashboard/kwaliteit'
     | '/dashboard/steekproef'
+    | '/intake/$id'
     | '/intake/new'
     | '/intake/'
   fileRoutesByTo: FileRoutesByTo
@@ -119,6 +129,7 @@ export interface FileRouteTypes {
     | '/dashboard/adviseur'
     | '/dashboard/kwaliteit'
     | '/dashboard/steekproef'
+    | '/intake/$id'
     | '/intake/new'
     | '/intake'
   id:
@@ -130,6 +141,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/adviseur'
     | '/_authenticated/dashboard/kwaliteit'
     | '/_authenticated/dashboard/steekproef'
+    | '/_authenticated/intake/$id'
     | '/_authenticated/intake/new'
     | '/_authenticated/intake/'
   fileRoutesById: FileRoutesById
@@ -184,6 +196,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIntakeNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/intake/$id': {
+      id: '/_authenticated/intake/$id'
+      path: '/intake/$id'
+      fullPath: '/intake/$id'
+      preLoaderRoute: typeof AuthenticatedIntakeIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard/steekproef': {
       id: '/_authenticated/dashboard/steekproef'
       path: '/steekproef'
@@ -229,12 +248,14 @@ const AuthenticatedDashboardRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRouteWithChildren
+  AuthenticatedIntakeIdRoute: typeof AuthenticatedIntakeIdRoute
   AuthenticatedIntakeNewRoute: typeof AuthenticatedIntakeNewRoute
   AuthenticatedIntakeIndexRoute: typeof AuthenticatedIntakeIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRouteWithChildren,
+  AuthenticatedIntakeIdRoute: AuthenticatedIntakeIdRoute,
   AuthenticatedIntakeNewRoute: AuthenticatedIntakeNewRoute,
   AuthenticatedIntakeIndexRoute: AuthenticatedIntakeIndexRoute,
 }

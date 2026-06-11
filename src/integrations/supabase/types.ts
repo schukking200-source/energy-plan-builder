@@ -93,6 +93,9 @@ export type Database = {
           lidar_point_cloud_ref: string | null
           object_ref: string | null
           payload: Json
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           roomplan_json: Json | null
           scan_app: Database["public"]["Enums"]["scan_app"] | null
           scan_format: string | null
@@ -115,6 +118,9 @@ export type Database = {
           lidar_point_cloud_ref?: string | null
           object_ref?: string | null
           payload?: Json
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           roomplan_json?: Json | null
           scan_app?: Database["public"]["Enums"]["scan_app"] | null
           scan_format?: string | null
@@ -137,6 +143,9 @@ export type Database = {
           lidar_point_cloud_ref?: string | null
           object_ref?: string | null
           payload?: Json
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           roomplan_json?: Json | null
           scan_app?: Database["public"]["Enums"]["scan_app"] | null
           scan_format?: string | null
@@ -200,7 +209,12 @@ export type Database = {
         | "admin"
       evidence_level: "low" | "medium" | "high"
       measurement_source: "manual" | "measured" | "inferred" | "lidar_derived"
-      measurement_status: "draft" | "submitted" | "approved" | "rejected"
+      measurement_status:
+        | "draft"
+        | "submitted"
+        | "in_review"
+        | "approved"
+        | "rejected"
       scan_app:
         | "polycam"
         | "scaniverse"
@@ -346,7 +360,13 @@ export const Constants = {
       ],
       evidence_level: ["low", "medium", "high"],
       measurement_source: ["manual", "measured", "inferred", "lidar_derived"],
-      measurement_status: ["draft", "submitted", "approved", "rejected"],
+      measurement_status: [
+        "draft",
+        "submitted",
+        "in_review",
+        "approved",
+        "rejected",
+      ],
       scan_app: [
         "polycam",
         "scaniverse",

@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { logAudit } from "@/lib/audit";
 import { z } from "zod";
 import { Loader2, MapPin, Upload } from "lucide-react";
+import { ALLOWED_SCAN_EXTENSIONS, MAX_SCAN_BYTES, validateScanFile } from "@/lib/upload-validation";
 
 export const Route = createFileRoute("/_authenticated/intake/new")({
   head: () => ({ meta: [{ title: "Nieuwe opname — Isolatieplan Tool" }] }),
@@ -144,6 +145,12 @@ function NewIntake() {
 
       // LiDAR-scan upload (optioneel) — pad: {user_id}/{measurement_id}/{filename}
       if (scanFile) {
+        const guard = validateScanFile(scanFile);
+        if (guard) {
+          toast.error(guard.message);
+          setSubmitting(false);
+          return;
+        }
         const ext = scanFile.name.split(".").pop()?.toLowerCase() ?? "bin";
         const path = `${user.id}/${row.id}/scan.${ext}`;
         const { error: upErr } = await supabase.storage
@@ -322,9 +329,26 @@ function NewIntake() {
                   <Input
                     id="scan_file"
                     type="file"
-                    accept=".usdz,.ply,.obj,.e57,.las,.fbx,.json,.zip"
-                    onChange={(e) => setScanFile(e.target.files?.[0] ?? null)}
+                    accept={ALLOWED_SCAN_EXTENSIONS.map((e) => "." + e).join(",")}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null;
+                      if (!f) {
+                        setScanFile(null);
+                        return;
+                      }
+                      const err = validateScanFile(f);
+                      if (err) {
+                        toast.error(err.message);
+                        e.target.value = "";
+                        setScanFile(null);
+                        return;
+                      }
+                      setScanFile(f);
+                    }}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Toegestaan: {ALLOWED_SCAN_EXTENSIONS.join(", ")} — max {MAX_SCAN_BYTES / 1024 / 1024} MB.
+                  </p>
                   {scanFile && (
                     <p className="text-xs text-muted-foreground">
                       <Upload className="mr-1 inline h-3 w-3" />

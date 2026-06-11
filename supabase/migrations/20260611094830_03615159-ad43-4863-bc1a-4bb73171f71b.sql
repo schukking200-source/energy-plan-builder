@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.in_measurement_status_guard() FROM PUBLIC, anon, authenticated;
