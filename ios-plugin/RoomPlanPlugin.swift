@@ -7,7 +7,7 @@ import CoreImage
 
 @available(iOS 16.0, *)
 @objc(RoomPlanPlugin)
-public class RoomPlanPlugin: CAPPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegate {
+public class RoomPlanPlugin: CAPPlugin, RoomCaptureSessionDelegate {
     
     private var captureSession: RoomCaptureSession?
     private var captureView: RoomCaptureView?
@@ -82,7 +82,7 @@ public class RoomPlanPlugin: CAPPlugin, RoomCaptureSessionDelegate, RoomCaptureV
             
             self.captureView = RoomCaptureView(frame: UIScreen.main.bounds)
             self.captureView?.captureSession.delegate = self
-            self.captureView?.delegate = self
+            // captureView?.delegate intentionally not set — we only use the session delegate
             
             if let viewController = self.bridge?.viewController {
                 self.captureView?.captureSession.run(configuration: sessionConfig)
