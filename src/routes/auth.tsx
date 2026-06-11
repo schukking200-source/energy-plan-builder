@@ -38,6 +38,27 @@ function AuthPage() {
     navigate({ to: "/dashboard" });
   }
 
+  async function handleDevLogin() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/public/dev-login", { method: "POST" });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Dev login mislukt");
+      const { error } = await supabase.auth.signInWithPassword({
+        email: body.email,
+        password: body.password,
+      });
+      if (error) throw error;
+      toast.success("Dev-login geslaagd (alle rollen)");
+      navigate({ to: "/dashboard" });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
