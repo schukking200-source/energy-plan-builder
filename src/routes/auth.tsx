@@ -89,6 +89,15 @@ function AuthPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <Button
+            type="button"
+            variant="secondary"
+            className="mb-4 w-full"
+            onClick={handleDevLogin}
+            disabled={loading}
+          >
+            🔧 Dev auto-login (alle rollen)
+          </Button>
           <Tabs defaultValue="signin">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Inloggen</TabsTrigger>
