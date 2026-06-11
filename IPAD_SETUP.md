@@ -69,7 +69,7 @@ Tab **Signing & Capabilities**:
 4. Druk **▶ Run** (of `Cmd+R`).
 5. Eerste keer: op iPad → **Instellingen → Algemeen → VPN & Apparaatbeheer → Jouw Apple ID → Vertrouwen**.
 
-App opent automatisch op iPad en laadt de live preview-URL van Lovable.
+App opent automatisch op iPad en laadt de lokale build uit `dist/`.
 
 ## Stap 7 — Testen
 
@@ -99,9 +99,9 @@ Geen App Store-review nodig voor interne testers (max 100). Externe testers (tot
 
 ## Wat je NIET hoeft te doen
 
-- ❌ Geen ander hosting opzetten — de iPad-app laadt gewoon onze Lovable-URL.
-- ❌ Geen frontend rebuild bij UI-wijzigingen — Lovable preview update automatisch in de app.
-- ❌ Alleen bij wijzigingen aan **Swift-plugin** of **capacitor.config.ts** moet je opnieuw `cap sync ios` + Xcode-build doen.
+- ❌ Geen ander hosting opzetten — de iPad-app bundelt de web-build lokaal.
+- ❌ Geen preview-URL nodig in de iPad-app; die kan in WKWebView wit blijven door remote JavaScript-errors.
+- ❌ Bij frontend-wijzigingen: wél opnieuw `bun run build` + `bunx cap sync ios` + Xcode Run doen.
 
 ## Bekende valkuilen
 
@@ -109,7 +109,7 @@ Geen App Store-review nodig voor interne testers (max 100). Externe testers (tot
 |---|---|
 | "Untrusted Developer" op iPad | Settings → VPN & Device Management → Trust |
 | Scan-knop blijft "Alleen in iPad-app" | Open via TestFlight/Xcode-build, niet Safari |
-| Witte pagina in app | `capacitor.config.ts` server.url is fout — preview verlopen? Update naar published URL |
+| Witte pagina in app | Maak opnieuw een lokale build: `bun run build && bunx cap sync ios`, daarna Run in Xcode |
 | Build-error "RoomPlan module not found" | Deployment target onder iOS 16 — zet op **iOS 16.0** in target settings |
 
 ---
