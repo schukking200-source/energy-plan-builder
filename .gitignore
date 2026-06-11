@@ -31,3 +31,8 @@ dist-ssr
 *.sln
 *.sw?
 ios/\nios/App/Pods/\nios/App/build/\nios/DerivedData/\nDerivedData/
+
+ios/
+ios/App/Pods/
+ios/App/build/
+DerivedData/
