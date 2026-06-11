@@ -4,10 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ROLE_LABELS, useMyRoles, type AppRole } from "@/lib/roles";
-import { Home, ClipboardCheck, ShieldCheck, Dice5, LogOut, AlertTriangle, ClipboardList, FlaskConical } from "lucide-react";
+import { Home, ClipboardCheck, ShieldCheck, Dice5, LogOut, AlertTriangle, ClipboardList, FlaskConical, Map } from "lucide-react";
 
 const NAV: Array<{ to: string; label: string; icon: typeof Home; role: AppRole | null }> = [
   { to: "/dashboard", label: "Mijn dossier", icon: Home, role: "bewoner" },
+  { to: "/roadmap", label: "Roadmap", icon: Map, role: null },
   { to: "/intake", label: "Opnames", icon: ClipboardList, role: "adviseur" },
   { to: "/dashboard/adviseur", label: "Adviseur", icon: ClipboardCheck, role: "adviseur" },
   { to: "/dashboard/kwaliteit", label: "Kwaliteitscommissie", icon: ShieldCheck, role: "kwaliteitscommissie" },

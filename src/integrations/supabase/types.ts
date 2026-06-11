@@ -158,6 +158,57 @@ export type Database = {
         }
         Relationships: []
       }
+      roadmap_task: {
+        Row: {
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          is_golive_blocker: boolean
+          owner: string | null
+          phase: number
+          phase_label: string
+          sort_order: number
+          status: Database["public"]["Enums"]["roadmap_status"]
+          title: string
+          type: Database["public"]["Enums"]["roadmap_type"]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          is_golive_blocker?: boolean
+          owner?: string | null
+          phase: number
+          phase_label: string
+          sort_order?: number
+          status?: Database["public"]["Enums"]["roadmap_status"]
+          title: string
+          type?: Database["public"]["Enums"]["roadmap_type"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          is_golive_blocker?: boolean
+          owner?: string | null
+          phase?: number
+          phase_label?: string
+          sort_order?: number
+          status?: Database["public"]["Enums"]["roadmap_status"]
+          title?: string
+          type?: Database["public"]["Enums"]["roadmap_type"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           granted_at: string
@@ -219,6 +270,8 @@ export type Database = {
         | "in_review"
         | "approved"
         | "rejected"
+      roadmap_status: "open" | "in_progress" | "done" | "blocker"
+      roadmap_type: "mvp0" | "enterprise"
       scan_app:
         | "polycam"
         | "scaniverse"
@@ -371,6 +424,8 @@ export const Constants = {
         "approved",
         "rejected",
       ],
+      roadmap_status: ["open", "in_progress", "done", "blocker"],
+      roadmap_type: ["mvp0", "enterprise"],
       scan_app: [
         "polycam",
         "scaniverse",
