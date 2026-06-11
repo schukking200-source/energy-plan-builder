@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRoadmapRouteImport } from './routes/_authenticated/roadmap'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedIntakeIndexRouteImport } from './routes/_authenticated/intake.index'
 import { Route as ApiPublicDevLoginRouteImport } from './routes/api/public/dev-login'
@@ -35,6 +36,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRoadmapRoute = AuthenticatedRoadmapRouteImport.update({
+  id: '/roadmap',
+  path: '/roadmap',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
@@ -91,6 +97,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
+  '/roadmap': typeof AuthenticatedRoadmapRoute
   '/admin/rls-tests': typeof AuthenticatedAdminRlsTestsRoute
   '/dashboard/adviseur': typeof AuthenticatedDashboardAdviseurRoute
   '/dashboard/kwaliteit': typeof AuthenticatedDashboardKwaliteitRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRouteWithChildren
+  '/roadmap': typeof AuthenticatedRoadmapRoute
   '/admin/rls-tests': typeof AuthenticatedAdminRlsTestsRoute
   '/dashboard/adviseur': typeof AuthenticatedDashboardAdviseurRoute
   '/dashboard/kwaliteit': typeof AuthenticatedDashboardKwaliteitRoute
@@ -119,6 +127,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRouteWithChildren
+  '/_authenticated/roadmap': typeof AuthenticatedRoadmapRoute
   '/_authenticated/admin/rls-tests': typeof AuthenticatedAdminRlsTestsRoute
   '/_authenticated/dashboard/adviseur': typeof AuthenticatedDashboardAdviseurRoute
   '/_authenticated/dashboard/kwaliteit': typeof AuthenticatedDashboardKwaliteitRoute
@@ -134,6 +143,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/roadmap'
     | '/admin/rls-tests'
     | '/dashboard/adviseur'
     | '/dashboard/kwaliteit'
@@ -147,6 +157,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/roadmap'
     | '/admin/rls-tests'
     | '/dashboard/adviseur'
     | '/dashboard/kwaliteit'
@@ -161,6 +172,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/dashboard'
+    | '/_authenticated/roadmap'
     | '/_authenticated/admin/rls-tests'
     | '/_authenticated/dashboard/adviseur'
     | '/_authenticated/dashboard/kwaliteit'
@@ -200,6 +212,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/roadmap': {
+      id: '/_authenticated/roadmap'
+      path: '/roadmap'
+      fullPath: '/roadmap'
+      preLoaderRoute: typeof AuthenticatedRoadmapRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
@@ -288,6 +307,7 @@ const AuthenticatedDashboardRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRouteWithChildren
+  AuthenticatedRoadmapRoute: typeof AuthenticatedRoadmapRoute
   AuthenticatedAdminRlsTestsRoute: typeof AuthenticatedAdminRlsTestsRoute
   AuthenticatedIntakeIdRoute: typeof AuthenticatedIntakeIdRoute
   AuthenticatedIntakeNewRoute: typeof AuthenticatedIntakeNewRoute
@@ -296,6 +316,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRouteWithChildren,
+  AuthenticatedRoadmapRoute: AuthenticatedRoadmapRoute,
   AuthenticatedAdminRlsTestsRoute: AuthenticatedAdminRlsTestsRoute,
   AuthenticatedIntakeIdRoute: AuthenticatedIntakeIdRoute,
   AuthenticatedIntakeNewRoute: AuthenticatedIntakeNewRoute,
@@ -314,3 +335,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
