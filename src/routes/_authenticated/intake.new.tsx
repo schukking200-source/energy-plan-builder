@@ -195,17 +195,28 @@ function NewIntake() {
           .from("lidar-scans")
           .upload(path, scanFile, { upsert: false, contentType: scanFile.type || undefined });
 
-        if (upErr) {
-          toast.error(`Scan upload mislukt: ${upErr.message}`);
-        } else {
-          await supabase
-            .from("in_measurement")
-            .update({
-              lidar_point_cloud_ref: path,
-              scan_size_bytes: scanFile.size,
-            })
-            .eq("id", row.id);
-        }
+          if (upErr) {
+            toast.error(`Scan upload mislukt: ${upErr.message}`);
+          } else {
+            await supabase
+              .from("in_measurement")
+              .update({
+                lidar_point_cloud_ref: path,
+                scan_size_bytes: scanFile.size,
+                roomplan_json: lidarResult
+                  ? {
+                      source: "roomplan_native",
+                      area: lidarResult.area,
+                      roomCount: lidarResult.roomCount,
+                      totalWindows: lidarResult.totalWindows,
+                      totalDoors: lidarResult.totalDoors,
+                      rooms: lidarResult.rooms,
+                      captured_at: new Date().toISOString(),
+                    }
+                  : null,
+              })
+              .eq("id", row.id);
+          }
       }
 
       await logAudit(
