@@ -376,6 +376,34 @@ function NewIntake() {
                   <Input id="scan_format" name="scan_format" placeholder="usdz, ply, obj, e57…" maxLength={16} />
                 </div>
                 <div className="grid gap-2 md:col-span-2">
+                  <Label>📱 Native iPad LiDAR-scan</Label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      onClick={startLidarScan}
+                      disabled={!isNative || scanning}
+                      variant={isNative ? "default" : "outline"}
+                    >
+                      {scanning ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Smartphone className="mr-2 h-4 w-4" />
+                      )}
+                      {isNative ? "Start RoomPlan-scan" : "Alleen in iPad-app"}
+                    </Button>
+                    {lidarResult && (
+                      <span className="text-xs text-muted-foreground">
+                        ✓ {lidarResult.area?.toFixed(1)} m² · {lidarResult.roomCount} ruimte(s) ·{" "}
+                        {lidarResult.totalWindows} ramen
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Werkt op iPad Pro met LiDAR via de native Capacitor-wrapper. Resultaat
+                    wordt opgeslagen als USDZ + gestructureerde JSON (ruimtes, ramen, deuren).
+                  </p>
+                </div>
+                <div className="grid gap-2 md:col-span-2">
                   <Label htmlFor="scan_file">Scan-bestand</Label>
                   <Input
                     id="scan_file"
