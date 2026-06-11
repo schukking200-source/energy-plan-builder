@@ -5,7 +5,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 // instantly reflected in the iPad app — no rebuild needed for UI changes.
 // After publishing, swap `server.url` to the published URL.
 const config: CapacitorConfig = {
-  appId: "app.lovable.7ac6a83168e3442aabfbb208b55a243d",
+  appId: "nl.isolatieplan.tool",
   appName: "Isolatieplan Tool",
   webDir: "dist",
   server: {
