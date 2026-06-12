@@ -1,29 +1,59 @@
-// On-screen debug overlay for iPad / WKWebView.
-// Renders captured errors, console messages, URL & navigation events directly
-// in the page so you can read them without Xcode when the screen is otherwise white.
+// On-screen debug overlay for iPad / WKWebView and browser.
 //
-// Activates automatically when:
+// Visible toggle:
+//   A small floating 🐞 button is always rendered (bottom-right). Tap it to
+//   show/hide the overlay. The preference is persisted in localStorage under
+//   "lov-debug-overlay" ("on" | "off").
+//
+// Auto-on by default when:
 //   - running inside Capacitor (window.Capacitor.isNativePlatform === true), OR
 //   - URL contains ?debug=1
+//   - localStorage "lov-debug-overlay" === "on"
 //
-// Tap the overlay header to collapse/expand. Tap "Copy" to copy to clipboard.
+// Even when the panel is hidden, console / error / fetch hooks remain active
+// so messages are captured and visible the moment you open the panel.
 
 type Entry = { level: string; msg: string; at: number };
 
 const MAX_ENTRIES = 200;
+const STORAGE_KEY = "lov-debug-overlay";
 const entries: Entry[] = [];
 let panel: HTMLDivElement | null = null;
 let body: HTMLDivElement | null = null;
+let toggleBtn: HTMLButtonElement | null = null;
 let installed = false;
+let visible = false;
 
-function shouldActivate(): boolean {
+function isNative(): boolean {
   if (typeof window === "undefined") return false;
+  const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+  return !!cap?.isNativePlatform?.();
+}
+
+function readStored(): "on" | "off" | null {
+  try {
+    const v = localStorage.getItem(STORAGE_KEY);
+    return v === "on" || v === "off" ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStored(v: "on" | "off") {
+  try {
+    localStorage.setItem(STORAGE_KEY, v);
+  } catch {}
+}
+
+function defaultVisible(): boolean {
+  if (typeof window === "undefined") return false;
+  const stored = readStored();
+  if (stored) return stored === "on";
   try {
     const url = new URL(window.location.href);
     if (url.searchParams.get("debug") === "1") return true;
   } catch {}
-  const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
-  return !!cap?.isNativePlatform?.();
+  return isNative();
 }
 
 function fmt(arg: unknown): string {
@@ -54,6 +84,55 @@ function render() {
   body.scrollTop = body.scrollHeight;
 }
 
+function applyVisibility() {
+  if (panel) panel.style.display = visible ? "flex" : "none";
+  if (toggleBtn) {
+    toggleBtn.textContent = visible ? "🐞 ×" : "🐞";
+    toggleBtn.title = visible ? "Debug-paneel verbergen" : "Debug-paneel tonen";
+    toggleBtn.setAttribute("aria-pressed", visible ? "true" : "false");
+  }
+}
+
+export function setDebugOverlayVisible(next: boolean) {
+  visible = next;
+  writeStored(next ? "on" : "off");
+  applyVisibility();
+}
+
+function mountToggleButton() {
+  if (toggleBtn || typeof document === "undefined") return;
+  toggleBtn = document.createElement("button");
+  toggleBtn.id = "lov-debug-toggle";
+  toggleBtn.type = "button";
+  toggleBtn.style.cssText = [
+    "position:fixed",
+    "right:10px",
+    "bottom:10px",
+    "z-index:2147483647",
+    "width:44px",
+    "height:44px",
+    "border-radius:22px",
+    "border:1px solid rgba(0,255,0,0.6)",
+    "background:rgba(0,0,0,0.75)",
+    "color:#0f0",
+    "font:14px/1 ui-monospace,SFMono-Regular,Menlo,monospace",
+    "display:flex",
+    "align-items:center",
+    "justify-content:center",
+    "cursor:pointer",
+    "box-shadow:0 2px 8px rgba(0,0,0,0.4)",
+    "padding:0",
+    "-webkit-tap-highlight-color:transparent",
+  ].join(";");
+  toggleBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setDebugOverlayVisible(!visible);
+  });
+  const attach = () => document.body && document.body.appendChild(toggleBtn!);
+  if (document.body) attach();
+  else document.addEventListener("DOMContentLoaded", attach);
+}
+
 function mountPanel() {
   if (panel || typeof document === "undefined") return;
   panel = document.createElement("div");
@@ -62,8 +141,8 @@ function mountPanel() {
     "position:fixed",
     "left:0",
     "right:0",
-    "bottom:0",
-    "z-index:2147483647",
+    "bottom:64px",
+    "z-index:2147483646",
     "max-height:50vh",
     "background:rgba(0,0,0,0.92)",
     "color:#0f0",
@@ -81,11 +160,13 @@ function mountPanel() {
   title.textContent = "🐞 Debug";
   title.style.flex = "1";
   const urlEl = document.createElement("span");
-  urlEl.style.cssText = "font-weight:normal;opacity:0.7;font-size:10px;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+  urlEl.style.cssText =
+    "font-weight:normal;opacity:0.7;font-size:10px;max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
   urlEl.textContent = window.location.href;
   const copyBtn = document.createElement("button");
   copyBtn.textContent = "Copy";
-  copyBtn.style.cssText = "background:#222;color:#0f0;border:1px solid #0f0;padding:2px 8px;font-size:11px";
+  copyBtn.style.cssText =
+    "background:#222;color:#0f0;border:1px solid #0f0;padding:2px 8px;font-size:11px;cursor:pointer";
   copyBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     const text = entries.map((x) => `[${new Date(x.at).toISOString()}] ${x.level} ${x.msg}`).join("\n");
@@ -99,26 +180,25 @@ function mountPanel() {
     entries.length = 0;
     render();
   });
+  const hideBtn = document.createElement("button");
+  hideBtn.textContent = "Verberg";
+  hideBtn.style.cssText = copyBtn.style.cssText;
+  hideBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setDebugOverlayVisible(false);
+  });
 
   body = document.createElement("div");
   body.style.cssText =
     "padding:8px 10px;overflow:auto;white-space:pre-wrap;word-break:break-word;flex:1 1 auto;min-height:80px";
 
-  let collapsed = false;
-  header.addEventListener("click", () => {
-    collapsed = !collapsed;
-    body!.style.display = collapsed ? "none" : "block";
-    panel!.style.maxHeight = collapsed ? "auto" : "50vh";
-  });
-
-  header.append(title, urlEl, copyBtn, clearBtn);
+  header.append(title, urlEl, copyBtn, clearBtn, hideBtn);
   panel.append(header, body);
 
   const attach = () => document.body && document.body.appendChild(panel!);
   if (document.body) attach();
   else document.addEventListener("DOMContentLoaded", attach);
 
-  // Keep URL display in sync with SPA navigation
   const updateUrl = () => (urlEl.textContent = window.location.href);
   window.addEventListener("popstate", updateUrl);
   window.addEventListener("hashchange", updateUrl);
@@ -140,18 +220,21 @@ function mountPanel() {
 
 export function installDebugOverlay() {
   if (installed) return;
-  if (!shouldActivate()) return;
+  if (typeof window === "undefined") return;
   installed = true;
 
   mountPanel();
+  mountToggleButton();
+  visible = defaultVisible();
+  applyVisibility();
 
   push("info", [
-    "Debug overlay active",
+    "Debug overlay actief",
     `\nUA: ${navigator.userAgent}`,
     `\nURL: ${window.location.href}`,
+    `\nNative: ${isNative()}`,
   ]);
 
-  // Patch console
   const methods: Array<"log" | "info" | "warn" | "error" | "debug"> = [
     "log",
     "info",
@@ -180,7 +263,6 @@ export function installDebugOverlay() {
     push("error", ["unhandledrejection:", ev.reason]);
   });
 
-  // Network failure logging
   const origFetch = window.fetch.bind(window);
   window.fetch = async (...args) => {
     const url = typeof args[0] === "string" ? args[0] : (args[0] as Request).url;
