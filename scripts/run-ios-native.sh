@@ -49,6 +49,18 @@ if [ ! -d "node_modules" ]; then
   npm install
 fi
 
+PLUGIN_SRC="local-plugins/room-plan-scanner/ios/Sources/RoomPlanScannerPlugin"
+PLUGIN_INSTALLED_SRC="node_modules/room-plan-scanner/ios/Sources/RoomPlanScannerPlugin"
+if [ ! -f "${PLUGIN_SRC}/RoomPlanScannerPlugin.swift" ] || [ ! -f "${PLUGIN_SRC}/RoomPlanScannerPlugin.m" ]; then
+  err "RoomPlanScannerPlugin Swift-bronnen ontbreken in ${PLUGIN_SRC}. Haal eerst de laatste projectwijzigingen op."
+  exit 1
+fi
+if [ ! -f "${PLUGIN_INSTALLED_SRC}/RoomPlanScannerPlugin.swift" ] || [ ! -f "${PLUGIN_INSTALLED_SRC}/RoomPlanScannerPlugin.m" ]; then
+  log "Lokale RoomPlanScannerPlugin opnieuw koppelen zodat Xcode de Swift-bronnen vindt..."
+  rm -rf node_modules/room-plan-scanner
+  npm install
+fi
+
 if [ "${IOS_SKIP_BUILD:-0}" != "1" ]; then
   log "Productie-build maken voor lokale WKWebView..."
   BROWSER=none npm_config_browser=none CI=1 npm run build

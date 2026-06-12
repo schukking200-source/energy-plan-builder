@@ -7,6 +7,7 @@ const config: CapacitorConfig = {
   appId: "nl.isolatieplan.tool",
   appName: "Isolatieplan Tool",
   webDir: "dist/client",
+  includePlugins: ["room-plan-scanner", "@capacitor/haptics"],
   ios: {
     contentInset: "always",
   },
