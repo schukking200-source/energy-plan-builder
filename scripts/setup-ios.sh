@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # All-in-one setup: installeert Homebrew/Node indien nodig, kloont de repo,
-# draait npm install + build en configureert Capacitor voor iOS.
+# draait npm install + build en start de échte native iPad-app via Capacitor.
+# Dit opent bewust géén Chrome/Safari/webpreview.
 #
 # Snelle start (kopieer/plak één regel in Terminal):
 #   cd ~/Documents && curl -fsSL https://raw.githubusercontent.com/schukking200-source/isolatie-opname-app/main/scripts/setup-ios.sh | bash
@@ -111,7 +112,27 @@ fi
 log "Capacitor sync (ios)..."
 npx cap sync ios
 
-log "Xcode openen..."
-npx cap open ios
+log "Verbonden fysieke iPad zoeken..."
+TARGET="${IOS_TARGET:-}"
+if [ -z "${TARGET}" ] && command -v xcrun >/dev/null 2>&1; then
+  TARGET="$(xcrun xctrace list devices 2>/dev/null \
+    | awk '/== Simulators ==/{exit} /\([0-9A-Fa-f-]{20,}\)/ && $0 !~ /Mac/ {print $0; exit}' \
+    | sed -E 's/.*\(([0-9A-Fa-f-]{20,})\).*/\1/')"
+fi
 
-ok "Klaar! De iOS-app staat open in Xcode."
+if [ -z "${TARGET}" ]; then
+  err "Geen aangesloten fysieke iPad gevonden. Sluit de iPad via USB-C aan en kies 'Trust This Computer'."
+  err "Ik open alleen Xcode voor signing/device-keuze — geen browser. Druk daarna in Xcode op ▶ Run."
+  npx cap open ios
+  exit 1
+fi
+
+log "Native iPad-app installeren en starten (target: ${TARGET})..."
+if ! npx cap run ios --target "${TARGET}"; then
+  err "Native run is mislukt. Meestal is dit Xcode signing of Developer Mode."
+  err "Ik open Xcode zodat je Team/Signing kunt kiezen — geen Chrome/Safari. Druk daarna op ▶ Run."
+  npx cap open ios
+  exit 1
+fi
+
+ok "Klaar! De native app is gestart op de iPad. Gebruik het app-icoon 'Isolatieplan Tool', niet Chrome/Safari."
