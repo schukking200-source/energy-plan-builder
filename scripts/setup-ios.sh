@@ -137,5 +137,21 @@ fi
 log "Capacitor sync (ios)..."
 cap sync ios
 
+# Camera-permissie voor RoomPlan in Info.plist zetten (idempotent)
+PLIST="ios/App/App/Info.plist"
+if [ -f "${PLIST}" ]; then
+  log "Info.plist updaten voor LiDAR/RoomPlan..."
+  /usr/libexec/PlistBuddy -c "Set :NSCameraUsageDescription 'Wordt gebruikt om met de LiDAR-scanner ruimtes in 3D op te nemen voor het isolatieplan.'" "${PLIST}" \
+    2>/dev/null \
+    || /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Wordt gebruikt om met de LiDAR-scanner ruimtes in 3D op te nemen voor het isolatieplan.'" "${PLIST}"
+fi
+
+# iOS deployment target ophogen naar 16 (RoomPlan vereist iOS 16+)
+PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"
+if [ -f "${PBXPROJ}" ]; then
+  log "iOS deployment target verhogen naar 16.0..."
+  /usr/bin/sed -i '' -E 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9]+(\.[0-9]+)?;/IPHONEOS_DEPLOYMENT_TARGET = 16.0;/g' "${PBXPROJ}" || true
+fi
+
 log "Setup klaar. Native iPad-app starten met browser-vrije runner..."
 IOS_SKIP_BUILD=1 IOS_SKIP_SYNC=1 bash scripts/run-ios-native.sh
