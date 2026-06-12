@@ -1,12 +1,12 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 // Capacitor config for the native iPad wrapper.
-// The iOS app loads the built files from `dist/`. This is more reliable in
-// WKWebView than loading the transient preview URL directly.
+// TanStack Start writes the browser bundle to `dist/client`; pointing Capacitor
+// at plain `dist` copies the server bundle instead and can leave WKWebView white.
 const config: CapacitorConfig = {
   appId: "nl.isolatieplan.tool",
   appName: "Isolatieplan Tool",
-  webDir: "dist",
+  webDir: "dist/client",
   ios: {
     contentInset: "always",
   },

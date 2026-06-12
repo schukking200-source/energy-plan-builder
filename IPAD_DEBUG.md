@@ -39,7 +39,7 @@ Voor diepe debug zie je álle WebView-events ook in Xcode:
    WebViewLogger.install()
    ```
 
-5. Druk op ▶️ Run.
+5. Niet via Chrome/Safari testen; start daarna weer met `npm run ios:run`.
 
 ### Logs lezen
 

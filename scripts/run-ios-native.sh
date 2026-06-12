@@ -8,6 +8,8 @@ set -euo pipefail
 
 export BROWSER=none
 export CAPACITOR_NO_OPEN=1
+export npm_config_browser=none
+export CI=1
 
 log()  { printf "\n\033[1;34m==>\033[0m %s\n" "$*"; }
 ok()   { printf "\033[1;32m✓\033[0m %s\n" "$*"; }
@@ -49,7 +51,15 @@ fi
 
 if [ "${IOS_SKIP_BUILD:-0}" != "1" ]; then
   log "Productie-build maken voor lokale WKWebView..."
-  npm run build
+  BROWSER=none npm_config_browser=none CI=1 npm run build
+fi
+
+WEB_DIR="${IOS_WEB_DIR:-dist/client}"
+if [ ! -f "${WEB_DIR}/index.html" ]; then
+  err "Native web-build ontbreekt: ${WEB_DIR}/index.html"
+  err "Dit project is TanStack Start; Capacitor moet 'dist/client' gebruiken, niet 'dist'."
+  err "Gestopt vóór iPad-installatie om een wit scherm te voorkomen. Draai opnieuw: npm run ios:run"
+  exit 1
 fi
 
 if [ ! -d "ios" ]; then
