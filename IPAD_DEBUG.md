@@ -28,7 +28,7 @@ Voor diepe debug zie je álle WebView-events ook in Xcode:
    ```bash
    cp ios-plugin/WebViewLogger.swift ios/App/App/WebViewLogger.swift
    ```
-2. Open Xcode (`npx cap open ios`).
+2. Open `ios/App/App.xcworkspace` handmatig in Finder/Xcode; gebruik hiervoor niet `npx cap open ios`.
 3. Sleep `WebViewLogger.swift` (uit `ios/App/App/`) in de Project Navigator
    onder de groep **App** → vink **"Add to target: App"** aan.
 4. Open `ios/App/App/AppDelegate.swift` en voeg helemaal onderaan in de

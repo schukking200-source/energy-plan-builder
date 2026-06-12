@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # All-in-one setup: installeert Homebrew/Node indien nodig, kloont de repo,
-# draait npm install + build en start de échte native iPad-app via Capacitor.
-# Dit opent bewust géén Chrome/Safari/webpreview.
+# draait npm install + build en start de échte native iPad-app via devicectl.
+# Dit opent bewust géén Chrome/Safari/webpreview en gebruikt geen `cap run`.
 #
 # Snelle start (kopieer/plak één regel in Terminal):
 #   cd ~/Documents && curl -fsSL https://raw.githubusercontent.com/schukking200-source/isolatie-opname-app/main/scripts/setup-ios.sh | bash
@@ -11,6 +11,9 @@
 
 set -euo pipefail
 
+export BROWSER=none
+export CAPACITOR_NO_OPEN=1
+
 REPO_USER="schukking200-source"
 REPO_NAME="isolatie-opname-app"
 REPO_DIR="${REPO_NAME}"
@@ -19,6 +22,14 @@ TOKEN="${1:-${GITHUB_TOKEN:-}}"
 log()  { printf "\n\033[1;34m==>\033[0m %s\n" "$*"; }
 ok()   { printf "\033[1;32m✓\033[0m %s\n" "$*"; }
 err()  { printf "\n\033[1;31m✗\033[0m %s\n" "$*" >&2; }
+
+cap() {
+  if [ -x "./node_modules/.bin/cap" ]; then
+    ./node_modules/.bin/cap "$@"
+  else
+    npx --no-install cap "$@"
+  fi
+}
 
 # Zorg dat we in ~/Documents zitten (of huidige map als die schrijfbaar is)
 if [ -d "$HOME/Documents" ] && [ "$(pwd)" = "$HOME" ]; then
@@ -64,6 +75,12 @@ if ! command -v pod >/dev/null 2>&1; then
 fi
 ok "CocoaPods aanwezig: $(pod --version)"
 
+if ! command -v xcrun >/dev/null 2>&1 || ! xcrun devicectl --help >/dev/null 2>&1; then
+  err "Apple devicectl ontbreekt. Installeer/update Xcode 15+ en draai daarna opnieuw."
+  err "Gestopt: ik open geen Xcode, Chrome, Safari of preview."
+  exit 1
+fi
+
 # 5. Repo clonen of updaten
 if [ -d "${REPO_DIR}/.git" ]; then
   log "Repo bestaat al — laatste wijzigingen ophalen..."
@@ -100,37 +117,17 @@ if [ ! -f "capacitor.config.ts" ] && [ ! -f "capacitor.config.json" ]; then
   log "Capacitor initialiseren..."
   APP_NAME="$(node -p "require('./package.json').name")"
   APP_ID="app.lovable.$(echo "${APP_NAME}" | tr -cd '[:alnum:]')"
-  npx cap init "${APP_NAME}" "${APP_ID}" --web-dir=dist
+  cap init "${APP_NAME}" "${APP_ID}" --web-dir=dist
 fi
 
 if [ ! -d "ios" ]; then
   log "iOS platform toevoegen..."
   npm install @capacitor/ios
-  npx cap add ios
+  cap add ios
 fi
 
 log "Capacitor sync (ios)..."
-npx cap sync ios
+cap sync ios
 
-log "Verbonden fysieke iPad zoeken..."
-TARGET="${IOS_TARGET:-}"
-if [ -z "${TARGET}" ] && command -v xcrun >/dev/null 2>&1; then
-  TARGET="$(xcrun xctrace list devices 2>/dev/null \
-    | awk '/== Simulators ==/{exit} /\([0-9A-Fa-f-]{20,}\)/ && $0 !~ /Mac/ {print $0; exit}' \
-    | sed -E 's/.*\(([0-9A-Fa-f-]{20,})\).*/\1/')"
-fi
-
-if [ -z "${TARGET}" ]; then
-  err "Geen aangesloten fysieke iPad gevonden. Sluit de iPad via USB-C aan en kies 'Trust This Computer'."
-  err "Gestopt: ik open geen Xcode, Chrome, Safari of preview. Sluit eerst de iPad aan en draai dit script opnieuw."
-  exit 1
-fi
-
-log "Native iPad-app installeren en starten (target: ${TARGET})..."
-if ! npx cap run ios --target "${TARGET}"; then
-  err "Native run is mislukt. Meestal is dit Xcode signing of Developer Mode."
-  err "Gestopt: ik open geen Xcode, Chrome, Safari of preview. Fix signing/Developer Mode en draai dit script opnieuw."
-  exit 1
-fi
-
-ok "Klaar! De native app is gestart op de iPad. Gebruik het app-icoon 'Isolatieplan Tool', niet Chrome/Safari."
+log "Setup klaar. Native iPad-app starten met browser-vrije runner..."
+IOS_SKIP_BUILD=1 IOS_SKIP_SYNC=1 bash scripts/run-ios-native.sh

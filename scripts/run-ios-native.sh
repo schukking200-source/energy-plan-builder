@@ -1,12 +1,25 @@
 #!/usr/bin/env bash
-# Bouwt de web-app, synchroniseert Capacitor en start daarna de échte native
-# iPad-app. Dit script opent geen Chrome/Safari en gebruikt geen Lovable preview-URL.
+# Native-only iPad runner.
+# Belangrijk: dit script gebruikt GEEN `npx cap run ios`, GEEN live-reload,
+# GEEN dev-server en GEEN browser/Chrome/Safari. Het bouwt met xcodebuild en
+# installeert/start de .app rechtstreeks via Apple's `devicectl`.
 
 set -euo pipefail
+
+export BROWSER=none
+export CAPACITOR_NO_OPEN=1
 
 log()  { printf "\n\033[1;34m==>\033[0m %s\n" "$*"; }
 ok()   { printf "\033[1;32m✓\033[0m %s\n" "$*"; }
 err()  { printf "\n\033[1;31m✗\033[0m %s\n" "$*" >&2; }
+
+cap() {
+  if [ -x "./node_modules/.bin/cap" ]; then
+    ./node_modules/.bin/cap "$@"
+  else
+    npx --no-install cap "$@"
+  fi
+}
 
 if [ ! -f "package.json" ]; then
   err "Start dit script vanuit de projectmap: cd isolatie-opname-app"
@@ -23,28 +36,35 @@ if ! command -v xcrun >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! xcrun devicectl --help >/dev/null 2>&1; then
+  err "Apple devicectl ontbreekt. Installeer/update Xcode 15+ en draai daarna opnieuw: npm run ios:run"
+  err "Gestopt: ik open geen Xcode, Chrome, Safari of preview."
+  exit 1
+fi
+
 if [ ! -d "node_modules" ]; then
   log "Dependencies installeren..."
   npm install
 fi
 
-log "Productie-build maken voor lokale WKWebView..."
-npm run build
+if [ "${IOS_SKIP_BUILD:-0}" != "1" ]; then
+  log "Productie-build maken voor lokale WKWebView..."
+  npm run build
+fi
 
 if [ ! -d "ios" ]; then
   log "iOS platform toevoegen..."
-  npx cap add ios
+  cap add ios
 fi
 
-log "Capacitor synchroniseren met iOS..."
-npx cap sync ios
+if [ "${IOS_SKIP_SYNC:-0}" != "1" ]; then
+  log "Capacitor synchroniseren met iOS..."
+  cap sync ios
+fi
 
 log "Verbonden fysieke iPads detecteren..."
-# Lijst van alle aangesloten fysieke devices (geen Mac, geen Simulator)
 DEVICES_RAW="$(xcrun xctrace list devices 2>/dev/null \
-  | awk '/== Simulators ==/{exit} /\([0-9A-Fa-f-]{20,}\)/ && $0 !~ /Mac/ {print}')"
-
-# Filter alleen iPads
+  | awk '/== Simulators ==/{exit} /\([0-9A-Fa-f-]{20,}\)/ && $0 !~ /Mac/ && $0 !~ /Simulator/ {print}')"
 IPADS="$(printf "%s\n" "${DEVICES_RAW}" | grep -i "iPad" || true)"
 
 if [ -z "${IPADS}" ]; then
@@ -58,24 +78,34 @@ log "Gevonden iPad(s):"
 printf "%s\n" "${IPADS}" | nl -ba
 
 TARGET="${IOS_TARGET:-}"
-if [ -z "${TARGET}" ]; then
-  if [ "${IPAD_COUNT}" -gt 1 ]; then
-    echo ""
-    read -r -p "Welke iPad gebruiken? Voer regelnummer in: " CHOICE
-    SELECTED="$(printf "%s\n" "${IPADS}" | sed -n "${CHOICE}p")"
-  else
-    SELECTED="${IPADS}"
+if [ -n "${TARGET}" ]; then
+  SELECTED="$(printf "%s\n" "${IPADS}" | grep -F "${TARGET}" || true)"
+  if [ -z "${SELECTED}" ]; then
+    err "IOS_TARGET=${TARGET} is niet gevonden tussen de aangesloten fysieke iPads."
+    exit 1
+  fi
+elif [ "${IPAD_COUNT}" -gt 1 ]; then
+  echo ""
+  read -r -p "Welke iPad gebruiken? Voer regelnummer in: " CHOICE
+  if ! printf "%s" "${CHOICE}" | grep -Eq '^[0-9]+$'; then
+    err "Ongeldige keuze: ${CHOICE}"
+    exit 1
+  fi
+  SELECTED="$(printf "%s\n" "${IPADS}" | sed -n "${CHOICE}p")"
+  if [ -z "${SELECTED}" ]; then
+    err "Geen iPad op regel ${CHOICE}."
+    exit 1
   fi
   TARGET="$(printf "%s" "${SELECTED}" | sed -E 's/.*\(([0-9A-Fa-f-]{20,})\).*/\1/')"
-  DEVICE_NAME="$(printf "%s" "${SELECTED}" | sed -E 's/ \([0-9.]+\) \([0-9A-Fa-f-]{20,}\).*//' | sed -E 's/^[[:space:]]+//')"
 else
-  SELECTED="$(printf "%s\n" "${IPADS}" | grep "${TARGET}" || true)"
-  DEVICE_NAME="$(printf "%s" "${SELECTED}" | sed -E 's/ \([0-9.]+\) \([0-9A-Fa-f-]{20,}\).*//' | sed -E 's/^[[:space:]]+//')"
-  [ -z "${DEVICE_NAME}" ] && DEVICE_NAME="(opgegeven via IOS_TARGET)"
+  SELECTED="${IPADS}"
+  TARGET="$(printf "%s" "${SELECTED}" | sed -E 's/.*\(([0-9A-Fa-f-]{20,})\).*/\1/')"
 fi
 
-if [ -z "${TARGET}" ]; then
-  err "Geen geldige iPad geselecteerd."
+DEVICE_NAME="$(printf "%s" "${SELECTED}" | sed -E 's/ \([0-9.]+\) \([0-9A-Fa-f-]{20,}\).*//' | sed -E 's/^[[:space:]]+//')"
+
+if [ -z "${TARGET}" ] || [ "${TARGET}" = "${SELECTED}" ]; then
+  err "Geen geldige iPad-UDID geselecteerd."
   exit 1
 fi
 
@@ -96,11 +126,51 @@ if [ "${IOS_CONFIRM:-1}" = "1" ]; then
   esac
 fi
 
-log "Native app installeren en starten op iPad (target: ${TARGET})..."
-if ! npx cap run ios --target "${TARGET}"; then
-  err "Native run is mislukt. Controleer Developer Mode, Trust Developer en Signing in Xcode."
-  err "Gestopt: ik open geen Xcode, Chrome, Safari of preview. Los signing/Developer Mode op en draai opnieuw: npm run ios:run"
+IOS_PROJECT_DIR="ios/App"
+SCHEME="${IOS_SCHEME:-App}"
+CONFIGURATION="${IOS_CONFIGURATION:-Debug}"
+DERIVED_DATA_PATH="${IOS_DERIVED_DATA_PATH:-${IOS_PROJECT_DIR}/DerivedData/${TARGET}}"
+
+if [ -d "${IOS_PROJECT_DIR}/App.xcworkspace" ]; then
+  XCODE_CONTAINER_ARGS=(-workspace "App.xcworkspace")
+elif [ -d "${IOS_PROJECT_DIR}/App.xcodeproj" ]; then
+  XCODE_CONTAINER_ARGS=(-project "App.xcodeproj")
+else
+  err "Geen iOS Xcode-project gevonden in ${IOS_PROJECT_DIR}. Draai eerst: npm run ios:setup"
   exit 1
 fi
 
-ok "Native iPad-app gestart. Er is geen Chrome/Safari/webpreview geopend."
+PROVISIONING_ARGS=()
+if [ "${IOS_ALLOW_PROVISIONING_UPDATES:-1}" = "1" ]; then
+  PROVISIONING_ARGS=(-allowProvisioningUpdates)
+fi
+
+log "Native iOS-app bouwen met xcodebuild (geen cap run, geen browser)..."
+xcrun xcodebuild \
+  "${XCODE_CONTAINER_ARGS[@]}" \
+  -scheme "${SCHEME}" \
+  -configuration "${CONFIGURATION}" \
+  -destination "id=${TARGET}" \
+  -derivedDataPath "${DERIVED_DATA_PATH}" \
+  "${PROVISIONING_ARGS[@]}" \
+  build
+
+APP_PATH="$(find "${DERIVED_DATA_PATH}/Build/Products/${CONFIGURATION}-iphoneos" -maxdepth 1 -name "*.app" -type d | head -n 1)"
+if [ -z "${APP_PATH}" ]; then
+  err "Build klaar, maar geen .app gevonden in ${DERIVED_DATA_PATH}/Build/Products/${CONFIGURATION}-iphoneos"
+  exit 1
+fi
+
+BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "${APP_PATH}/Info.plist" 2>/dev/null || true)"
+if [ -z "${BUNDLE_ID}" ]; then
+  err "Bundle ID niet gevonden in ${APP_PATH}/Info.plist"
+  exit 1
+fi
+
+log "Native app installeren op iPad via devicectl..."
+xcrun devicectl device install app --device "${TARGET}" "${APP_PATH}"
+
+log "Native app starten op iPad via devicectl..."
+xcrun devicectl device process launch --device "${TARGET}" "${BUNDLE_ID}"
+
+ok "Native iPad-app gestart via devicectl. Chrome/Safari/Lovable-preview zijn niet gebruikt."
