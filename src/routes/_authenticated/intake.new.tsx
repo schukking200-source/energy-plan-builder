@@ -20,7 +20,15 @@ import { z } from "zod";
 import { Loader2, MapPin, Upload, Smartphone } from "lucide-react";
 import { ALLOWED_SCAN_EXTENSIONS, MAX_SCAN_BYTES, validateScanFile } from "@/lib/upload-validation";
 import { Capacitor } from "@capacitor/core";
-import RoomPlan, { type RoomPlanResult } from "@/plugins/RoomPlanPlugin";
+import { RoomPlanScanner } from "room-plan-scanner";
+
+type RoomPlanResult = {
+  area: number;
+  roomCount: number;
+  totalWindows: number;
+  totalDoors: number;
+  rooms: never[];
+};
 
 export const Route = createFileRoute("/_authenticated/intake/new")({
   head: () => ({ meta: [{ title: "Nieuwe opname — Isolatieplan Tool" }] }),
@@ -82,27 +90,36 @@ function NewIntake() {
     }
     setScanning(true);
     try {
-      const { available } = await RoomPlan.isAvailable();
-      if (!available) {
-        toast.error("Dit apparaat heeft geen LiDAR-sensor.");
+      const sup = await RoomPlanScanner.isSupported();
+      if (!sup.supported) {
+        toast.error(sup.reason ?? "Dit apparaat ondersteunt LiDAR/RoomPlan niet.");
         return;
       }
-      const result = await RoomPlan.startScan();
-      setLidarResult(result);
+      const result = await RoomPlanScanner.startScan();
+      const mapped: RoomPlanResult = {
+        area: result.summary.floorAreaM2,
+        roomCount: 1,
+        totalWindows: result.summary.windowCount,
+        totalDoors: result.summary.doorCount,
+        rooms: [],
+      };
+      setLidarResult(mapped);
       // Converteer base64 USDZ → File zodat bestaande upload-flow werkt
-      const bin = atob(result.floorPlanData);
+      const bin = atob(result.usdzBase64);
       const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      const file = new File([bytes], "roomplan.usdz", { type: result.mimeType });
+      const file = new File([bytes], "roomplan.usdz", { type: "model/vnd.usdz+zip" });
       setScanFile(file);
-      const parts: string[] = [];
-      if (result.area) parts.push(`${result.area.toFixed(1)} m²`);
-      if (result.roomCount) parts.push(`${result.roomCount} ruimte(s)`);
-      if (result.totalWindows) parts.push(`${result.totalWindows} ramen`);
-      if (result.totalDoors) parts.push(`${result.totalDoors} deuren`);
-      toast.success(`Scan voltooid! ${parts.join(", ")}`);
+      toast.success(
+        `Scan voltooid! ${mapped.area.toFixed(1)} m², ${result.summary.wallCount} muren, ${mapped.totalWindows} ramen`,
+      );
     } catch (e) {
-      toast.error((e as Error).message ?? "LiDAR-scan mislukt");
+      const msg = (e as Error).message ?? "LiDAR-scan mislukt";
+      if (msg.toLowerCase().includes("cancel") || msg.toLowerCase().includes("annuleer")) {
+        toast.info("Scan geannuleerd.");
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setScanning(false);
     }
