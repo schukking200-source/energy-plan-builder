@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useMyRoles } from "@/lib/roles";
 import { logAudit } from "@/lib/audit";
 import { ArrowLeft, Download, Loader2 } from "lucide-react";
+import { LidarScanButton } from "@/components/LidarScanButton";
 
 export const Route = createFileRoute("/_authenticated/intake/$id")({
   head: () => ({ meta: [{ title: "Opname-detail — Isolatieplan Tool" }] }),
