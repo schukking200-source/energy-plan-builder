@@ -49,16 +49,14 @@ fi
 
 if [ -z "${TARGET}" ]; then
   err "Geen aangesloten fysieke iPad gevonden. Sluit de iPad via USB-C aan en kies 'Trust This Computer'."
-  err "Fallback: Xcode opent alleen voor device/signing-keuze. Dit is nog steeds native, geen browser."
-  npx cap open ios
+  err "Gestopt: ik open geen Xcode, Chrome, Safari of preview. Sluit eerst de iPad aan en draai opnieuw: npm run ios:run"
   exit 1
 fi
 
 log "Native app installeren en starten op iPad (target: ${TARGET})..."
 if ! npx cap run ios --target "${TARGET}"; then
   err "Native run is mislukt. Controleer Developer Mode, Trust Developer en Signing in Xcode."
-  err "Xcode opent nu als fallback. Kies je iPad en druk op ▶ Run."
-  npx cap open ios
+  err "Gestopt: ik open geen Xcode, Chrome, Safari of preview. Los signing/Developer Mode op en draai opnieuw: npm run ios:run"
   exit 1
 fi
 
