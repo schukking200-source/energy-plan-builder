@@ -221,15 +221,12 @@ resolve_team_id() {
   fi
 
   if ! is_valid_team_id "${team}"; then
-    err "Geen geldige Apple Team ID automatisch gevonden."
-    echo ""
-    echo "Stop eerst een eventuele 'dquote>' prompt met Ctrl+C."
-    echo "Zoek daarna je echte Team ID in Xcode > Settings > Accounts."
-    echo "Draai dan exact:"
-    echo "  IOS_DEVELOPMENT_TEAM=JOUWTEAMID npm run ios:clean"
-    echo ""
-    echo "Gebruik dus niet de voorbeeldwaarde ABCDE12345."
-    exit 1
+    warn "Geen Team ID expliciet opgegeven. Xcode kiest automatisch een Personal Team via -allowProvisioningUpdates."
+    warn "Forceer eventueel met: IOS_DEVELOPMENT_TEAM=JOUWTEAMID npm run ios:run"
+    IOS_DEVELOPMENT_TEAM=""
+    export IOS_DEVELOPMENT_TEAM
+    patch_pbxproj ""
+    return 0
   fi
 
   if [ ! -f "${team_file}" ] || [ "$(normalize_team "$(cat "${team_file}" 2>/dev/null || true)")" != "${team}" ]; then
@@ -241,6 +238,7 @@ resolve_team_id() {
   export IOS_DEVELOPMENT_TEAM
   patch_pbxproj "${IOS_DEVELOPMENT_TEAM}"
 }
+
 
 select_ipad() {
   log "Verbonden fysieke iPads detecteren..."
