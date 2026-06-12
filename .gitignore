@@ -30,9 +30,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-ios/\nios/App/Pods/\nios/App/build/\nios/DerivedData/\nDerivedData/
 
-ios/
-ios/App/Pods/
-ios/App/build/
-DerivedData/
+# Native iOS app build output lives at the repository root.
+# Keep plugin iOS sources under local-plugins/**/ios tracked.
+/ios/
+/ios/App/Pods/
+/ios/App/build/
+/ios/DerivedData/
+/DerivedData/
