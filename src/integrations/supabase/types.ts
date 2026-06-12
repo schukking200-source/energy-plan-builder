@@ -80,6 +80,56 @@ export type Database = {
         }
         Relationships: []
       }
+      in_lidar_scan: {
+        Row: {
+          captured_at: string
+          captured_by: string
+          created_at: string
+          device_meta: Json
+          id: string
+          measurement_id: string
+          room_label: string | null
+          room_summary: Json
+          size_bytes: number | null
+          storage_path_json: string
+          storage_path_usdz: string
+        }
+        Insert: {
+          captured_at?: string
+          captured_by?: string
+          created_at?: string
+          device_meta?: Json
+          id?: string
+          measurement_id: string
+          room_label?: string | null
+          room_summary?: Json
+          size_bytes?: number | null
+          storage_path_json: string
+          storage_path_usdz: string
+        }
+        Update: {
+          captured_at?: string
+          captured_by?: string
+          created_at?: string
+          device_meta?: Json
+          id?: string
+          measurement_id?: string
+          room_label?: string | null
+          room_summary?: Json
+          size_bytes?: number | null
+          storage_path_json?: string
+          storage_path_usdz?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "in_lidar_scan_measurement_id_fkey"
+            columns: ["measurement_id"]
+            isOneToOne: false
+            referencedRelation: "in_measurement"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       in_measurement: {
         Row: {
           captured_at: string
