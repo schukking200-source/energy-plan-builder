@@ -21,7 +21,7 @@ Gebruik:
   npm run ios:clean               iOS-map + DerivedData schoon opnieuw genereren
 
 Handige variabelen:
-  IOS_DEVELOPMENT_TEAM=ABCDE12345 npm run ios:run
+  IOS_DEVELOPMENT_TEAM=7FB5CA068F npm run ios:run
   IOS_TARGET=<iPad-UDID> IOS_CONFIRM=0 npm run ios:run
 TXT
 }
@@ -187,6 +187,8 @@ detect_team_from_profiles() {
 resolve_team_id() {
   local team_file=".ios-dev-team"
   local team=""
+  local default_team
+  default_team="$(normalize_team "${IOS_DEFAULT_DEVELOPMENT_TEAM:-7FB5CA068F}")"
 
   if [ -n "${IOS_DEVELOPMENT_TEAM:-}" ]; then
     team="$(normalize_team "${IOS_DEVELOPMENT_TEAM}")"
@@ -197,6 +199,9 @@ resolve_team_id() {
   elif [ -n "${APPLE_TEAM_ID:-}" ]; then
     team="$(normalize_team "${APPLE_TEAM_ID}")"
     ok "Team ID geladen uit APPLE_TEAM_ID: ${team}"
+  elif is_valid_team_id "${default_team}"; then
+    team="${default_team}"
+    ok "Team ID ingesteld op projectstandaard: ${team}"
   elif [ -f "${team_file}" ]; then
     team="$(normalize_team "$(cat "${team_file}" 2>/dev/null || true)")"
     [ -n "${team}" ] && ok "Team ID geladen uit ${team_file}: ${team}"
@@ -215,8 +220,8 @@ resolve_team_id() {
     patch_pbxproj ""
     patch_package_swift_min_ios
     err "Geen Apple Development Team ID gevonden. Fysieke iPad-builds hebben die verplicht nodig."
-    err "Draai éénmalig: IOS_DEVELOPMENT_TEAM=8LBCX3BNXV npm run ios:run"
-    err "Of zet je eigen Team ID in plaats van 8LBCX3BNXV als Xcode een andere toont."
+    err "Draai éénmalig: IOS_DEVELOPMENT_TEAM=7FB5CA068F npm run ios:run"
+    err "Of zet je eigen Team ID in plaats van 7FB5CA068F als Xcode een andere toont."
     exit 1
   fi
 
