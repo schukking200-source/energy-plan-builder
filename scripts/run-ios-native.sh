@@ -78,15 +78,19 @@ patch_info_plist() {
 
 patch_pbxproj() {
   local team="${1:-}"
-  # Patch ALLE pbxproj-bestanden onder ios/ (App, CapApp-SPM, lokale plugins),
-  # zodat geen enkel sub-project op iOS 15.0 blijft hangen.
+  # Patch ALLE pbxproj-bestanden onder ios/ naar iOS 16.0 (App, CapApp-SPM, plugins).
+  # Wanneer geen team is opgegeven, halen we DEVELOPMENT_TEAM expliciet leeg zodat
+  # Xcode + -allowProvisioningUpdates automatisch een Personal Team kunnen kiezen.
   while IFS= read -r -d '' pbxproj; do
     /usr/bin/perl -0pi -e 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9]+(\.[0-9]+)?;/IPHONEOS_DEPLOYMENT_TARGET = 16.0;/g' "${pbxproj}"
     if [ -n "${team}" ]; then
       /usr/bin/perl -0pi -e "s/DEVELOPMENT_TEAM = (\"\"|[A-Z0-9]*);/DEVELOPMENT_TEAM = ${team};/g" "${pbxproj}"
+    else
+      /usr/bin/perl -0pi -e 's/DEVELOPMENT_TEAM = [A-Z0-9]+;/DEVELOPMENT_TEAM = "";/g' "${pbxproj}"
     fi
   done < <(find ios -name 'project.pbxproj' -print0 2>/dev/null)
 }
+
 
 
 native_project_is_valid() {
