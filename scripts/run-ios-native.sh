@@ -372,8 +372,8 @@ fi
   -configuration "${CONFIGURATION}" \
   -destination "id=${TARGET}" \
   -derivedDataPath "DerivedData/${TARGET}" \
-  "${PROVISIONING_ARGS[@]}" \
-  "${XCODE_TEAM_ARGS[@]}" \
+  ${PROVISIONING_ARGS[@]+"${PROVISIONING_ARGS[@]}"} \
+  ${XCODE_TEAM_ARGS[@]+"${XCODE_TEAM_ARGS[@]}"} \
   CODE_SIGN_STYLE=Automatic \
   build )
 
