@@ -13,6 +13,8 @@ set -euo pipefail
 
 export BROWSER=none
 export CAPACITOR_NO_OPEN=1
+export npm_config_browser=none
+export CI=1
 
 REPO_USER="schukking200-source"
 REPO_NAME="isolatie-opname-app"
@@ -105,7 +107,7 @@ log "npm install..."
 npm install
 
 log "npm run build..."
-npm run build
+BROWSER=none npm_config_browser=none CI=1 npm run build
 
 # 7. Capacitor iOS
 log "Capacitor CLI controleren..."
@@ -117,7 +119,7 @@ if [ ! -f "capacitor.config.ts" ] && [ ! -f "capacitor.config.json" ]; then
   log "Capacitor initialiseren..."
   APP_NAME="$(node -p "require('./package.json').name")"
   APP_ID="app.lovable.$(echo "${APP_NAME}" | tr -cd '[:alnum:]')"
-  cap init "${APP_NAME}" "${APP_ID}" --web-dir=dist
+  cap init "${APP_NAME}" "${APP_ID}" --web-dir=dist/client
 fi
 
 if [ ! -d "ios" ]; then

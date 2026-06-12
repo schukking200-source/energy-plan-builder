@@ -25,9 +25,9 @@ Doel: één-tap RoomPlan-scan vanuit deze app op je iPad Pro.
 ## Stap 2 — Web-build maken (2 min)
 
 ```bash
-bun run build
+npm run build
 ```
-Dit vult de `dist/` map die Capacitor nodig heeft.
+Dit vult de `dist/client/` map die Capacitor nodig heeft.
 
 ## Stap 3 — iOS-project genereren (3 min)
 
@@ -41,7 +41,7 @@ Resultaat: nieuwe map `ios/App/` met een Xcode-project.
 
 De Swift- en Objective-C bestanden staan al in `ios-plugin/` in de repo.
 
-1. Open Xcode-project: `bunx cap open ios`
+1. Open `ios/App/App.xcworkspace` handmatig in Finder/Xcode; gebruik hiervoor niet `cap open ios`.
 2. In Xcode-zijbalk: **App → App** (geel mapje) → rechtsklik → **Add Files to "App"…**
 3. Selecteer beide bestanden uit `ios-plugin/`:
    - `RoomPlanPlugin.swift`
@@ -88,7 +88,7 @@ Als de iPad niet gevonden wordt of signing nog niet klopt, stopt het script met
 een foutmelding. Het opent bewust geen Xcode, Chrome, Safari of preview-URL en
 gebruikt ook geen `npx cap run ios` / `native-run` meer.
 
-App opent automatisch op iPad en laadt de lokale build uit `dist/`.
+App opent automatisch op iPad en laadt de lokale build uit `dist/client/`.
 
 ## Stap 7 — Testen
 
@@ -128,7 +128,7 @@ Geen App Store-review nodig voor interne testers (max 100). Externe testers (tot
 |---|---|
 | "Untrusted Developer" op iPad | Settings → VPN & Device Management → Trust |
 | Scan-knop blijft "Alleen in iPad-app" | Start met `npm run ios:run`, niet via Safari/Chrome/preview |
-| Witte pagina in app | Sluit Safari/Chrome af, start opnieuw met `npm run ios:run` en lees de debug-overlay / Xcode `WV:` logs |
+| Witte pagina in app | Controleer dat `capacitor.config.ts` `webDir: "dist/client"` heeft, draai `npm run ios:run` opnieuw en lees de debug-overlay / Xcode `WV:` logs |
 | Build-error "RoomPlan module not found" | Deployment target onder iOS 16 — zet op **iOS 16.0** in target settings |
 
 ---
