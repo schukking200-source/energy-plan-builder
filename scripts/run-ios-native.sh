@@ -78,14 +78,16 @@ patch_info_plist() {
 
 patch_pbxproj() {
   local team="${1:-}"
-  local pbxproj="ios/App/App.xcodeproj/project.pbxproj"
-  [ -f "${pbxproj}" ] || return 0
-
-  /usr/bin/perl -0pi -e 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9]+(\.[0-9]+)?;/IPHONEOS_DEPLOYMENT_TARGET = 16.0;/g' "${pbxproj}"
-  if [ -n "${team}" ]; then
-    /usr/bin/perl -0pi -e "s/DEVELOPMENT_TEAM = (\"\"|[A-Z0-9]*);/DEVELOPMENT_TEAM = ${team};/g" "${pbxproj}"
-  fi
+  # Patch ALLE pbxproj-bestanden onder ios/ (App, CapApp-SPM, lokale plugins),
+  # zodat geen enkel sub-project op iOS 15.0 blijft hangen.
+  while IFS= read -r -d '' pbxproj; do
+    /usr/bin/perl -0pi -e 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9]+(\.[0-9]+)?;/IPHONEOS_DEPLOYMENT_TARGET = 16.0;/g' "${pbxproj}"
+    if [ -n "${team}" ]; then
+      /usr/bin/perl -0pi -e "s/DEVELOPMENT_TEAM = (\"\"|[A-Z0-9]*);/DEVELOPMENT_TEAM = ${team};/g" "${pbxproj}"
+    fi
+  done < <(find ios -name 'project.pbxproj' -print0 2>/dev/null)
 }
+
 
 native_project_is_valid() {
   [ -d "ios/App/App.xcodeproj" ] && [ -f "ios/App/App/Info.plist" ] && [ -f "ios/App/Podfile" ]
