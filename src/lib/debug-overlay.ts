@@ -1,4 +1,4 @@
-// On-screen debug overlay for iPad / WKWebView and browser.
+// On-screen debug overlay for native iOS / WKWebView and browser.
 //
 // Visible toggle:
 //   A small floating 🐞 button is always rendered (bottom-right). Tap it to
@@ -169,7 +169,9 @@ function mountPanel() {
     "background:#222;color:#0f0;border:1px solid #0f0;padding:2px 8px;font-size:11px;cursor:pointer";
   copyBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    const text = entries.map((x) => `[${new Date(x.at).toISOString()}] ${x.level} ${x.msg}`).join("\n");
+    const text = entries
+      .map((x) => `[${new Date(x.at).toISOString()}] ${x.level} ${x.msg}`)
+      .join("\n");
     navigator.clipboard?.writeText(text).catch(() => {});
   });
   const clearBtn = document.createElement("button");

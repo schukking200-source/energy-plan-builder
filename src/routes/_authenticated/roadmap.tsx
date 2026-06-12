@@ -55,10 +55,7 @@ function RoadmapPage() {
   const toggle = useMutation({
     mutationFn: async (t: Task) => {
       const next = t.status === "done" ? "open" : "done";
-      const { error } = await supabase
-        .from("roadmap_task")
-        .update({ status: next })
-        .eq("id", t.id);
+      const { error } = await supabase.from("roadmap_task").update({ status: next }).eq("id", t.id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["roadmap_task"] }),
@@ -87,7 +84,8 @@ function RoadmapPage() {
   const projectBlockerDone = projectBlockerTotal - projectBlockers.length;
   const lidarReady = projectBlockerTotal > 0 && projectBlockers.length === 0;
 
-  const goliveBlockers = tasks?.filter((t) => t.is_golive_blocker && !t.is_project_blocker && t.status !== "done") ?? [];
+  const goliveBlockers =
+    tasks?.filter((t) => t.is_golive_blocker && !t.is_project_blocker && t.status !== "done") ?? [];
 
   return (
     <AppShell>
@@ -96,14 +94,16 @@ function RoadmapPage() {
           <CardHeader>
             <CardTitle>Roadmap per module</CardTitle>
             <CardDescription>
-              Per blok opleveren. Eerst Module 0 (LiDAR) — zonder werkende LiDAR-pipeline op iPad
+              Per blok opleveren. Eerst Module 0 (LiDAR) — zonder werkende LiDAR-pipeline op iOS
               stopt het hele project. Daarna de modules in volgorde.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="font-medium">Totale voortgang</span>
-              <span className="text-muted-foreground">{done} / {total} taken</span>
+              <span className="text-muted-foreground">
+                {done} / {total} taken
+              </span>
             </div>
             <Progress value={pct} />
             {!canEdit && (
@@ -115,29 +115,44 @@ function RoadmapPage() {
         </Card>
 
         {projectBlockerTotal > 0 && (
-          <Card className={lidarReady ? "border-primary/40 bg-primary/5" : "border-destructive bg-destructive/10"}>
+          <Card
+            className={
+              lidarReady ? "border-primary/40 bg-primary/5" : "border-destructive bg-destructive/10"
+            }
+          >
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <ShieldAlert className={`h-5 w-5 ${lidarReady ? "text-primary" : "text-destructive"}`} />
+                <ShieldAlert
+                  className={`h-5 w-5 ${lidarReady ? "text-primary" : "text-destructive"}`}
+                />
                 {lidarReady
                   ? "LiDAR-pipeline werkt ✓ — project kan door"
-                  : `Project-blocker: LiDAR / iPad (${projectBlockerDone}/${projectBlockerTotal})`}
+                  : `Project-blocker: LiDAR / iOS (${projectBlockerDone}/${projectBlockerTotal})`}
               </CardTitle>
-              <CardDescription className={lidarReady ? "" : "text-destructive-foreground/90 font-medium"}>
+              <CardDescription
+                className={lidarReady ? "" : "text-destructive-foreground/90 font-medium"}
+              >
                 {lidarReady
                   ? "Module 0 is volledig afgerond. De rest van het project kan veilig gebouwd worden."
-                  : "Zonder werkende LiDAR-scan op iPad heeft de rest van het systeem geen waarde. Alles wat hieronder staat wacht hierop."}
+                  : "Zonder werkende LiDAR-scan op iPhone Pro of iPad Pro heeft de rest van het systeem geen waarde. Alles wat hieronder staat wacht hierop."}
               </CardDescription>
             </CardHeader>
             {!lidarReady && (
               <CardContent>
-                <Progress value={(projectBlockerDone / projectBlockerTotal) * 100} className="mb-3" />
+                <Progress
+                  value={(projectBlockerDone / projectBlockerTotal) * 100}
+                  className="mb-3"
+                />
                 <div className="flex flex-wrap gap-2">
                   {projectBlockers.slice(0, 6).map((b) => (
-                    <Badge key={b.id} variant="destructive" className="text-xs">{b.title}</Badge>
+                    <Badge key={b.id} variant="destructive" className="text-xs">
+                      {b.title}
+                    </Badge>
                   ))}
                   {projectBlockers.length > 6 && (
-                    <Badge variant="outline" className="text-xs">+{projectBlockers.length - 6} meer</Badge>
+                    <Badge variant="outline" className="text-xs">
+                      +{projectBlockers.length - 6} meer
+                    </Badge>
                   )}
                 </div>
               </CardContent>
@@ -158,7 +173,9 @@ function RoadmapPage() {
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
               {goliveBlockers.map((b) => (
-                <Badge key={b.id} variant="outline" className="border-amber-500/50 text-xs">{b.title}</Badge>
+                <Badge key={b.id} variant="outline" className="border-amber-500/50 text-xs">
+                  {b.title}
+                </Badge>
               ))}
             </CardContent>
           </Card>
@@ -176,7 +193,10 @@ function RoadmapPage() {
           const isProjectBlockerModule = items.some((i) => i.is_project_blocker);
           const waitingOnLidar = !lidarReady && !isProjectBlockerModule;
           return (
-            <Card key={key} className={isProjectBlockerModule && !lidarReady ? "border-destructive/40" : ""}>
+            <Card
+              key={key}
+              className={isProjectBlockerModule && !lidarReady ? "border-destructive/40" : ""}
+            >
               <CardHeader>
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -219,7 +239,9 @@ function RoadmapPage() {
                       )}
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className={`text-sm font-medium ${isDone ? "line-through text-muted-foreground" : ""}`}>
+                          <span
+                            className={`text-sm font-medium ${isDone ? "line-through text-muted-foreground" : ""}`}
+                          >
                             {t.title}
                           </span>
                           <Badge
@@ -229,10 +251,14 @@ function RoadmapPage() {
                             {t.type === "enterprise" ? "Enterprise" : "MVP 0"}
                           </Badge>
                           {t.is_project_blocker && (
-                            <Badge variant="destructive" className="text-[10px]">project-blocker</Badge>
+                            <Badge variant="destructive" className="text-[10px]">
+                              project-blocker
+                            </Badge>
                           )}
                           {t.is_golive_blocker && !t.is_project_blocker && (
-                            <Badge variant="outline" className="border-amber-500/50 text-[10px]">go-live</Badge>
+                            <Badge variant="outline" className="border-amber-500/50 text-[10px]">
+                              go-live
+                            </Badge>
                           )}
                           {t.status === "in_progress" && (
                             <Badge className="text-[10px]">bezig</Badge>

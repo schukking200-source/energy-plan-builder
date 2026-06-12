@@ -31,7 +31,10 @@ export function LidarScanButton({ measurementId, onUploaded, disabled }: Props) 
 
   useEffect(() => {
     if (!isNative) {
-      setSupported({ supported: false, reason: "Alleen beschikbaar in de native iPad-app" });
+      setSupported({
+        supported: false,
+        reason: "Alleen beschikbaar in de native iOS-app op een iPhone Pro of iPad Pro met LiDAR",
+      });
       return;
     }
     RoomPlanScanner.isSupported()
@@ -47,7 +50,11 @@ export function LidarScanButton({ measurementId, onUploaded, disabled }: Props) 
       const userId = userData.user.id;
 
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const safeLabel = roomLabel.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "room";
+      const safeLabel =
+        roomLabel
+          .toLowerCase()
+          .replace(/[^a-z0-9-]+/g, "-")
+          .replace(/^-+|-+$/g, "") || "room";
       const baseKey = `${userId}/${measurementId}/${stamp}-${safeLabel}`;
       const usdzKey = `${baseKey}.usdz`;
       const jsonKey = `${baseKey}.json`;
@@ -76,7 +83,7 @@ export function LidarScanButton({ measurementId, onUploaded, disabled }: Props) 
         storage_path_json: jsonKey,
         size_bytes: scan.sizeBytes,
         room_summary: scan.summary,
-        device_meta: { ua: navigator.userAgent, native: true },
+        device_meta: { ua: navigator.userAgent, native: true, scanner: "apple-roomplan-ios" },
       });
       if (insErr) throw new Error(`DB insert: ${insErr.message}`);
 
@@ -100,7 +107,10 @@ export function LidarScanButton({ measurementId, onUploaded, disabled }: Props) 
   }
 
   async function startScan() {
-    const label = window.prompt("Welke ruimte ga je scannen? (bv. woonkamer, slaapkamer 1)", "woonkamer");
+    const label = window.prompt(
+      "Welke ruimte ga je scannen? (bv. woonkamer, slaapkamer 1)",
+      "woonkamer",
+    );
     if (!label) return;
     setBusy("scanning");
     try {
@@ -143,10 +153,10 @@ export function LidarScanButton({ measurementId, onUploaded, disabled }: Props) 
       {busy === "uploading" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
       {!busy && <ScanLine className="mr-2 h-4 w-4" />}
       {busy === "scanning"
-        ? "Scan loopt — beweeg de iPad langzaam door de ruimte"
+        ? "Scan loopt — beweeg je iPhone/iPad langzaam door de ruimte"
         : busy === "uploading"
           ? "Scan opslaan…"
-          : "Ruimte scannen (LiDAR)"}
+          : "Ruimte scannen met iPhone/iPad LiDAR"}
     </Button>
   );
 }

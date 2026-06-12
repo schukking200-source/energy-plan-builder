@@ -40,14 +40,50 @@ const schema = z.object({
   notes: z.string().trim().max(2000).optional().or(z.literal("")),
   source: z.enum(["manual", "measured", "inferred", "lidar_derived"]),
   evidence_level: z.enum(["low", "medium", "high"]),
-  scan_app: z.enum(["polycam", "scaniverse", "scanner3d_app", "canvas", "roomplan_native", "manual", "other"]).optional(),
+  scan_app: z
+    .enum([
+      "polycam",
+      "scaniverse",
+      "scanner3d_app",
+      "canvas",
+      "roomplan_native",
+      "manual",
+      "other",
+    ])
+    .optional(),
   scan_format: z.string().trim().max(16).optional().or(z.literal("")),
   // ISSO-light velden
-  bouwjaar: z.coerce.number().int().min(1800).max(2100).optional().or(z.literal("" as unknown as number)),
-  gebruiksoppervlak_m2: z.coerce.number().min(0).max(10000).optional().or(z.literal("" as unknown as number)),
-  dakisolatie_rc: z.coerce.number().min(0).max(20).optional().or(z.literal("" as unknown as number)),
-  gevelisolatie_rc: z.coerce.number().min(0).max(20).optional().or(z.literal("" as unknown as number)),
-  vloerisolatie_rc: z.coerce.number().min(0).max(20).optional().or(z.literal("" as unknown as number)),
+  bouwjaar: z.coerce
+    .number()
+    .int()
+    .min(1800)
+    .max(2100)
+    .optional()
+    .or(z.literal("" as unknown as number)),
+  gebruiksoppervlak_m2: z.coerce
+    .number()
+    .min(0)
+    .max(10000)
+    .optional()
+    .or(z.literal("" as unknown as number)),
+  dakisolatie_rc: z.coerce
+    .number()
+    .min(0)
+    .max(20)
+    .optional()
+    .or(z.literal("" as unknown as number)),
+  gevelisolatie_rc: z.coerce
+    .number()
+    .min(0)
+    .max(20)
+    .optional()
+    .or(z.literal("" as unknown as number)),
+  vloerisolatie_rc: z.coerce
+    .number()
+    .min(0)
+    .max(20)
+    .optional()
+    .or(z.literal("" as unknown as number)),
   glas_type: z.string().trim().max(32).optional().or(z.literal("")),
 });
 
@@ -79,13 +115,15 @@ function NewIntake() {
         toast.success("Locatie vastgelegd");
       },
       () => toast.error("Locatie kon niet worden opgehaald"),
-      { enableHighAccuracy: true, timeout: 8000 }
+      { enableHighAccuracy: true, timeout: 8000 },
     );
   }
 
   async function startLidarScan() {
     if (!isNative) {
-      toast.error("LiDAR werkt alleen in de native iPad-app (Capacitor).");
+      toast.error(
+        "LiDAR werkt alleen in de native iOS-app op een iPhone Pro of iPad Pro met LiDAR.",
+      );
       return;
     }
     setScanning(true);
@@ -164,11 +202,11 @@ function NewIntake() {
         userAgent: navigator.userAgent,
         platform: navigator.platform,
         language: navigator.language,
-        captured_via: "web-pwa",
+        captured_via: isNative ? "native-ios" : "web-pwa",
       };
 
       const snapshot_hash = await sha256(
-        JSON.stringify({ payload, geo, device_meta, captured_at: new Date().toISOString() })
+        JSON.stringify({ payload, geo, device_meta, captured_at: new Date().toISOString() }),
       );
 
       const insertRow = {
@@ -212,37 +250,37 @@ function NewIntake() {
           .from("lidar-scans")
           .upload(path, scanFile, { upsert: false, contentType: scanFile.type || undefined });
 
-          if (upErr) {
-            toast.error(`Scan upload mislukt: ${upErr.message}`);
-          } else {
-            await supabase
-              .from("in_measurement")
-              .update({
-                lidar_point_cloud_ref: path,
-                scan_size_bytes: scanFile.size,
-                roomplan_json: lidarResult
-                  ? (JSON.parse(
-                      JSON.stringify({
-                        source: "roomplan_native",
-                        area: lidarResult.area ?? null,
-                        roomCount: lidarResult.roomCount ?? null,
-                        totalWindows: lidarResult.totalWindows ?? null,
-                        totalDoors: lidarResult.totalDoors ?? null,
-                        rooms: lidarResult.rooms ?? [],
-                        captured_at: new Date().toISOString(),
-                      })
-                    ) as never)
-                  : null,
-              })
-              .eq("id", row.id);
-          }
+        if (upErr) {
+          toast.error(`Scan upload mislukt: ${upErr.message}`);
+        } else {
+          await supabase
+            .from("in_measurement")
+            .update({
+              lidar_point_cloud_ref: path,
+              scan_size_bytes: scanFile.size,
+              roomplan_json: lidarResult
+                ? (JSON.parse(
+                    JSON.stringify({
+                      source: "roomplan_native",
+                      area: lidarResult.area ?? null,
+                      roomCount: lidarResult.roomCount ?? null,
+                      totalWindows: lidarResult.totalWindows ?? null,
+                      totalDoors: lidarResult.totalDoors ?? null,
+                      rooms: lidarResult.rooms ?? [],
+                      captured_at: new Date().toISOString(),
+                    }),
+                  ) as never)
+                : null,
+            })
+            .eq("id", row.id);
+        }
       }
 
       await logAudit(
         finalize ? "intake.submitted" : "intake.draft_created",
         "in_measurement",
         row.id,
-        { object_ref: v.object_ref || null, has_scan: !!scanFile, source: v.source }
+        { object_ref: v.object_ref || null, has_scan: !!scanFile, source: v.source },
       );
 
       toast.success(finalize ? "Opname ingediend" : "Concept opgeslagen");
@@ -260,8 +298,8 @@ function NewIntake() {
       <div className="mx-auto max-w-3xl">
         <h1 className="mb-1 text-xl font-semibold">Nieuwe opname</h1>
         <p className="mb-4 text-sm text-muted-foreground">
-          Web-PWA formulier. Bestanden uit Polycam / Scaniverse / 3d Scanner App kunnen onderaan worden geüpload als
-          LiDAR-bewijs.
+          Web-PWA formulier. Bestanden uit Polycam / Scaniverse / 3d Scanner App kunnen onderaan
+          worden geüpload als LiDAR-bewijs.
         </p>
 
         <form onSubmit={(e) => onSubmit(e, false)}>
@@ -274,7 +312,12 @@ function NewIntake() {
               <CardContent className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
                   <Label htmlFor="object_ref">BAG-id / objectreferentie</Label>
-                  <Input id="object_ref" name="object_ref" placeholder="bv. 0344010000123456" maxLength={64} />
+                  <Input
+                    id="object_ref"
+                    name="object_ref"
+                    placeholder="bv. 0344010000123456"
+                    maxLength={64}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label>GPS-locatie</Label>
@@ -283,9 +326,7 @@ function NewIntake() {
                       <MapPin className="mr-1 h-4 w-4" /> Vastleggen
                     </Button>
                     <span className="text-xs text-muted-foreground">
-                      {geo
-                        ? `${geo.lat.toFixed(5)}, ${geo.lng.toFixed(5)}`
-                        : "niet vastgelegd"}
+                      {geo ? `${geo.lat.toFixed(5)}, ${geo.lng.toFixed(5)}` : "niet vastgelegd"}
                     </span>
                   </div>
                 </div>
@@ -295,7 +336,9 @@ function NewIntake() {
             <Card>
               <CardHeader>
                 <CardTitle>Bouwgegevens (ISSO-light)</CardTitle>
-                <CardDescription>Velden worden in Fase 3-detail uitgebreid naar volledig ISSO-protocol.</CardDescription>
+                <CardDescription>
+                  Velden worden in Fase 3-detail uitgebreid naar volledig ISSO-protocol.
+                </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
@@ -304,23 +347,52 @@ function NewIntake() {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="gebruiksoppervlak_m2">Gebruiksoppervlak (m²)</Label>
-                  <Input id="gebruiksoppervlak_m2" name="gebruiksoppervlak_m2" type="number" step="0.1" min={0} />
+                  <Input
+                    id="gebruiksoppervlak_m2"
+                    name="gebruiksoppervlak_m2"
+                    type="number"
+                    step="0.1"
+                    min={0}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="dakisolatie_rc">Rc dak (m²·K/W)</Label>
-                  <Input id="dakisolatie_rc" name="dakisolatie_rc" type="number" step="0.1" min={0} />
+                  <Input
+                    id="dakisolatie_rc"
+                    name="dakisolatie_rc"
+                    type="number"
+                    step="0.1"
+                    min={0}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="gevelisolatie_rc">Rc gevel (m²·K/W)</Label>
-                  <Input id="gevelisolatie_rc" name="gevelisolatie_rc" type="number" step="0.1" min={0} />
+                  <Input
+                    id="gevelisolatie_rc"
+                    name="gevelisolatie_rc"
+                    type="number"
+                    step="0.1"
+                    min={0}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="vloerisolatie_rc">Rc vloer (m²·K/W)</Label>
-                  <Input id="vloerisolatie_rc" name="vloerisolatie_rc" type="number" step="0.1" min={0} />
+                  <Input
+                    id="vloerisolatie_rc"
+                    name="vloerisolatie_rc"
+                    type="number"
+                    step="0.1"
+                    min={0}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="glas_type">Glas-type</Label>
-                  <Input id="glas_type" name="glas_type" placeholder="HR++, triple, enkel…" maxLength={32} />
+                  <Input
+                    id="glas_type"
+                    name="glas_type"
+                    placeholder="HR++, triple, enkel…"
+                    maxLength={32}
+                  />
                 </div>
                 <div className="grid gap-2 md:col-span-2">
                   <Label htmlFor="notes">Opmerkingen</Label>
@@ -333,14 +405,17 @@ function NewIntake() {
               <CardHeader>
                 <CardTitle>Bronstatus & bewijskracht</CardTitle>
                 <CardDescription>
-                  Wordt per opname vastgelegd zodat reviewer en steekproef weten hoe hard de data is.
+                  Wordt per opname vastgelegd zodat reviewer en steekproef weten hoe hard de data
+                  is.
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
                   <Label>Bron</Label>
                   <Select name="source" defaultValue="manual">
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="manual">Handmatig ingevoerd</SelectItem>
                       <SelectItem value="measured">Gemeten ter plaatse</SelectItem>
@@ -352,7 +427,9 @@ function NewIntake() {
                 <div className="grid gap-2">
                   <Label>Bewijskracht</Label>
                   <Select name="evidence_level" defaultValue="low">
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="low">Laag</SelectItem>
                       <SelectItem value="medium">Middel</SelectItem>
@@ -367,16 +444,19 @@ function NewIntake() {
               <CardHeader>
                 <CardTitle>LiDAR / 3D-scan (optioneel)</CardTitle>
                 <CardDescription>
-                  iPad-app (Polycam, Scaniverse, 3d Scanner App, Canvas, RoomPlan) → exporteer naar .usdz/.ply/.obj/.e57 →
-                  upload hier. Bestand wordt opgeslagen onder <code>lidar-scans/{`{user_id}/{intake_id}`}</code> en is alleen
-                  zichtbaar voor jou + reviewers.
+                  iOS-app (Polycam, Scaniverse, 3d Scanner App, Canvas, RoomPlan) → exporteer naar
+                  .usdz/.ply/.obj/.e57 → upload hier. Bestand wordt opgeslagen onder{" "}
+                  <code>lidar-scans/{`{user_id}/{intake_id}`}</code> en is alleen zichtbaar voor jou
+                  + reviewers.
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
                   <Label>Scan-app</Label>
                   <Select name="scan_app" defaultValue="manual">
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="manual">Geen scan</SelectItem>
                       <SelectItem value="polycam">Polycam</SelectItem>
@@ -390,10 +470,15 @@ function NewIntake() {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="scan_format">Bestandsformaat</Label>
-                  <Input id="scan_format" name="scan_format" placeholder="usdz, ply, obj, e57…" maxLength={16} />
+                  <Input
+                    id="scan_format"
+                    name="scan_format"
+                    placeholder="usdz, ply, obj, e57…"
+                    maxLength={16}
+                  />
                 </div>
                 <div className="grid gap-2 md:col-span-2">
-                  <Label>📱 Native iPad LiDAR-scan</Label>
+                  <Label>Native iPhone/iPad LiDAR-scan</Label>
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
                       type="button"
@@ -406,7 +491,7 @@ function NewIntake() {
                       ) : (
                         <Smartphone className="mr-2 h-4 w-4" />
                       )}
-                      {isNative ? "Start RoomPlan-scan" : "Alleen in iPad-app"}
+                      {isNative ? "Start RoomPlan-scan" : "Alleen in iOS-app"}
                     </Button>
                     {lidarResult && (
                       <span className="text-xs text-muted-foreground">
@@ -416,8 +501,9 @@ function NewIntake() {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Werkt op iPad Pro met LiDAR via de native Capacitor-wrapper. Resultaat
-                    wordt opgeslagen als USDZ + gestructureerde JSON (ruimtes, ramen, deuren).
+                    Werkt op iPhone Pro en iPad Pro met LiDAR via de native Capacitor-wrapper.
+                    Resultaat wordt opgeslagen als USDZ + gestructureerde JSON (ruimtes, ramen,
+                    deuren).
                   </p>
                 </div>
                 <div className="grid gap-2 md:col-span-2">
@@ -443,7 +529,8 @@ function NewIntake() {
                     }}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Toegestaan: {ALLOWED_SCAN_EXTENSIONS.join(", ")} — max {MAX_SCAN_BYTES / 1024 / 1024} MB.
+                    Toegestaan: {ALLOWED_SCAN_EXTENSIONS.join(", ")} — max{" "}
+                    {MAX_SCAN_BYTES / 1024 / 1024} MB.
                   </p>
                   {scanFile && (
                     <p className="text-xs text-muted-foreground">
@@ -466,8 +553,11 @@ function NewIntake() {
                   const formEl = (e.currentTarget as HTMLButtonElement).closest("form");
                   if (formEl) {
                     onSubmit(
-                      { preventDefault: () => {}, currentTarget: formEl } as unknown as React.FormEvent<HTMLFormElement>,
-                      true
+                      {
+                        preventDefault: () => {},
+                        currentTarget: formEl,
+                      } as unknown as React.FormEvent<HTMLFormElement>,
+                      true,
                     );
                   }
                 }}

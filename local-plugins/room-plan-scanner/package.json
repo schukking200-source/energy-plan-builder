@@ -1,7 +1,7 @@
 {
   "name": "room-plan-scanner",
   "version": "0.1.0",
-  "description": "Capacitor plugin: Apple RoomPlan LiDAR-scan voor iPad Pro.",
+  "description": "Capacitor plugin: Apple RoomPlan LiDAR-scan voor iPhone Pro en iPad Pro.",
   "main": "src/index.ts",
   "module": "src/index.ts",
   "types": "src/index.ts",
