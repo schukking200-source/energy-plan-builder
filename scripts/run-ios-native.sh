@@ -129,6 +129,10 @@ normalize_team() {
   printf "%s" "$1" | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]'
 }
 
+is_valid_team_id() {
+  printf "%s" "$1" | grep -Eq '^[A-Z0-9]{10}$' && [ "$1" != "ABCDE12345" ]
+}
+
 detect_team_from_xcode_project() {
   local pbxproj="ios/App/App.xcodeproj/project.pbxproj"
   [ -f "${pbxproj}" ] || return 0
@@ -210,18 +214,15 @@ resolve_team_id() {
     [ -n "${team}" ] && ok "Team ID gevonden in provisioning profile: ${team}"
   fi
 
-  if [ -z "${team}" ] || ! printf "%s" "${team}" | grep -Eq '^[A-Z0-9]{10}$'; then
+  if ! is_valid_team_id "${team}"; then
+    err "Geen geldige Apple Team ID automatisch gevonden."
     echo ""
-    echo "Geen geldige Apple Team ID automatisch gevonden."
-    echo "Log in Xcode in met je Apple Developer-account of draai:"
-    echo "  IOS_DEVELOPMENT_TEAM=ABCDE12345 npm run ios:run"
-    echo "Je Team ID is exact 10 tekens."
-    read -r -p "Team ID: " team
-    team="$(normalize_team "${team}")"
-  fi
-
-  if ! printf "%s" "${team}" | grep -Eq '^[A-Z0-9]{10}$'; then
-    err "Ongeldige Team ID: '${team}'. Verwacht exact 10 hoofdletters/cijfers."
+    echo "Stop eerst een eventuele 'dquote>' prompt met Ctrl+C."
+    echo "Zoek daarna je echte Team ID in Xcode > Settings > Accounts."
+    echo "Draai dan exact:"
+    echo "  IOS_DEVELOPMENT_TEAM=JOUWTEAMID npm run ios:clean"
+    echo ""
+    echo "Gebruik dus niet de voorbeeldwaarde ABCDE12345."
     exit 1
   fi
 
