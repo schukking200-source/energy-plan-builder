@@ -203,6 +203,8 @@ log "Native iOS-app bouwen met xcodebuild (geen cap run, geen browser)..."
   -destination "id=${TARGET}" \
   -derivedDataPath "DerivedData/${TARGET}" \
   "${PROVISIONING_ARGS[@]}" \
+  DEVELOPMENT_TEAM="${IOS_DEVELOPMENT_TEAM}" \
+  CODE_SIGN_STYLE=Automatic \
   build )
 
 APP_PATH="$(find "${DERIVED_DATA_PATH}/Build/Products/${CONFIGURATION}-iphoneos" -maxdepth 1 -name "*.app" -type d | head -n 1)"
