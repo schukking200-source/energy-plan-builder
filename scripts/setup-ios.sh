@@ -122,16 +122,14 @@ fi
 
 if [ -z "${TARGET}" ]; then
   err "Geen aangesloten fysieke iPad gevonden. Sluit de iPad via USB-C aan en kies 'Trust This Computer'."
-  err "Ik open alleen Xcode voor signing/device-keuze — geen browser. Druk daarna in Xcode op ▶ Run."
-  npx cap open ios
+  err "Gestopt: ik open geen Xcode, Chrome, Safari of preview. Sluit eerst de iPad aan en draai dit script opnieuw."
   exit 1
 fi
 
 log "Native iPad-app installeren en starten (target: ${TARGET})..."
 if ! npx cap run ios --target "${TARGET}"; then
   err "Native run is mislukt. Meestal is dit Xcode signing of Developer Mode."
-  err "Ik open Xcode zodat je Team/Signing kunt kiezen — geen Chrome/Safari. Druk daarna op ▶ Run."
-  npx cap open ios
+  err "Gestopt: ik open geen Xcode, Chrome, Safari of preview. Fix signing/Developer Mode en draai dit script opnieuw."
   exit 1
 fi
 

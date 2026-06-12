@@ -83,8 +83,8 @@ Voorwaarden:
 2. Op iPad: **Instellingen → Privacy & Security → Developer Mode → AAN** (iPad herstart).
 3. Eerste keer: op iPad → **Instellingen → Algemeen → VPN & Apparaatbeheer → Jouw Apple ID → Vertrouwen**.
 
-Als signing nog niet klopt, opent het script alleen Xcode als fallback. Kies dan
-jouw iPad en druk **▶ Run**. Ook dat is native; er wordt geen browser gestart.
+Als de iPad niet gevonden wordt of signing nog niet klopt, stopt het script met
+een foutmelding. Het opent bewust geen Xcode, Chrome, Safari of preview-URL.
 
 App opent automatisch op iPad en laadt de lokale build uit `dist/`.
 
@@ -126,7 +126,7 @@ Geen App Store-review nodig voor interne testers (max 100). Externe testers (tot
 |---|---|
 | "Untrusted Developer" op iPad | Settings → VPN & Device Management → Trust |
 | Scan-knop blijft "Alleen in iPad-app" | Start met `npm run ios:run`, niet via Safari/Chrome |
-| Witte pagina in app | Start opnieuw met `npm run ios:run` en lees de debug-overlay / Xcode `WV:` logs |
+| Witte pagina in app | Sluit Safari/Chrome af, start opnieuw met `npm run ios:run` en lees de debug-overlay / Xcode `WV:` logs |
 | Build-error "RoomPlan module not found" | Deployment target onder iOS 16 — zet op **iOS 16.0** in target settings |
 
 ---
