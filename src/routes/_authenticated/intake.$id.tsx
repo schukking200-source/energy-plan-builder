@@ -42,6 +42,22 @@ type Row = {
   created_at: string;
 };
 
+type LidarScanRow = {
+  id: string;
+  room_label: string | null;
+  storage_path_usdz: string;
+  storage_path_json: string;
+  size_bytes: number | null;
+  room_summary: {
+    wallCount?: number;
+    doorCount?: number;
+    windowCount?: number;
+    floorAreaM2?: number;
+    ceilingHeightM?: number;
+  };
+  captured_at: string;
+};
+
 function IntakeDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
@@ -51,6 +67,8 @@ function IntakeDetail() {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [acting, setActing] = useState<string | null>(null);
+  const [scans, setScans] = useState<LidarScanRow[]>([]);
+  const [scanReload, setScanReload] = useState(0);
 
   const isReviewer = !!roles?.some((r) =>
     ["kwaliteitscommissie", "steekproef", "admin"].includes(r),
@@ -80,6 +98,41 @@ function IntakeDetail() {
       setLoading(false);
     })();
   }, [id]);
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await (
+        supabase.from("in_lidar_scan") as unknown as {
+          select: (cols: string) => {
+            eq: (k: string, v: string) => {
+              order: (
+                c: string,
+                o: { ascending: boolean },
+              ) => Promise<{ data: LidarScanRow[] | null; error: { message: string } | null }>;
+            };
+          };
+        }
+      )
+        .select(
+          "id, room_label, storage_path_usdz, storage_path_json, size_bytes, room_summary, captured_at",
+        )
+        .eq("measurement_id", id)
+        .order("captured_at", { ascending: false });
+      if (error) toast.error(`Scans laden mislukt: ${error.message}`);
+      setScans(data ?? []);
+    })();
+  }, [id, scanReload]);
+
+  async function downloadScan(path: string) {
+    const { data, error } = await supabase.storage
+      .from("lidar-scans")
+      .createSignedUrl(path, 60 * 10);
+    if (error || !data?.signedUrl) {
+      toast.error(`Download-link maken mislukt: ${error?.message ?? "geen URL"}`);
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener");
+  }
 
   async function transition(next: "in_review" | "approved" | "rejected" | "submitted") {
     if (!row) return;
