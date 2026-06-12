@@ -13,6 +13,7 @@ import { useMyRoles } from "@/lib/roles";
 import { logAudit } from "@/lib/audit";
 import { ArrowLeft, Download, Loader2 } from "lucide-react";
 import { LidarScanButton } from "@/components/LidarScanButton";
+import { LidarUploadButton } from "@/components/LidarUploadButton";
 
 export const Route = createFileRoute("/_authenticated/intake/$id")({
   head: () => ({ meta: [{ title: "Opname-detail — Isolatieplan Tool" }] }),
@@ -45,8 +46,10 @@ type Row = {
 type LidarScanRow = {
   id: string;
   room_label: string | null;
-  storage_path_usdz: string;
-  storage_path_json: string;
+  storage_path: string | null;
+  storage_path_usdz: string | null;
+  storage_path_json: string | null;
+  file_format: string | null;
   size_bytes: number | null;
   room_summary: {
     wallCount?: number;
@@ -54,6 +57,9 @@ type LidarScanRow = {
     windowCount?: number;
     floorAreaM2?: number;
     ceilingHeightM?: number;
+    volumeM3?: number;
+    extractedFrom?: string;
+    note?: string;
   };
   captured_at: string;
 };
@@ -114,7 +120,7 @@ function IntakeDetail() {
         }
       )
         .select(
-          "id, room_label, storage_path_usdz, storage_path_json, size_bytes, room_summary, captured_at",
+          "id, room_label, storage_path, storage_path_usdz, storage_path_json, file_format, size_bytes, room_summary, captured_at",
         )
         .eq("measurement_id", id)
         .order("captured_at", { ascending: false });
@@ -235,16 +241,30 @@ function IntakeDetail() {
             <CardHeader>
               <CardTitle>LiDAR / 3D-scans</CardTitle>
               <CardDescription>
-                Apple RoomPlan-scans van de ruimtes binnen deze opname. Alleen toe te voegen zolang de opname op
-                status “draft” staat.
+                Upload een scan uit Polycam, RoomPlan of vergelijkbaar (GLB / OBJ / PLY / USDZ).
+                Vloeroppervlak, hoogte en volume worden automatisch uit de bounding-box bepaald.
+                Alleen toe te voegen zolang de opname op status &ldquo;draft&rdquo; staat.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 text-sm">
               {row.status === "draft" ? (
-                <LidarScanButton
-                  measurementId={row.id}
-                  onUploaded={() => setScanReload((n) => n + 1)}
-                />
+                <>
+                  <LidarUploadButton
+                    measurementId={row.id}
+                    onUploaded={() => setScanReload((n) => n + 1)}
+                  />
+                  <details className="text-xs text-muted-foreground">
+                    <summary className="cursor-pointer">
+                      Alternatief: native iPad-scan (alleen in iPad-app)
+                    </summary>
+                    <div className="mt-2">
+                      <LidarScanButton
+                        measurementId={row.id}
+                        onUploaded={() => setScanReload((n) => n + 1)}
+                      />
+                    </div>
+                  </details>
+                </>
               ) : (
                 <p className="text-xs text-muted-foreground">
                   Opname is ingediend — nieuwe scans toevoegen kan niet meer.
@@ -255,40 +275,69 @@ function IntakeDetail() {
                 <p className="text-xs text-muted-foreground">Nog geen scans bij deze opname.</p>
               ) : (
                 <ul className="grid gap-2">
-                  {scans.map((s) => (
-                    <li key={s.id} className="rounded-md border p-2">
-                      <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <span className="font-medium">{s.room_label ?? "ruimte"}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(s.captured_at).toLocaleString("nl-NL")}
-                        </span>
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {s.room_summary.wallCount ?? 0} muren ·{" "}
-                        {s.room_summary.windowCount ?? 0} ramen ·{" "}
-                        {s.room_summary.doorCount ?? 0} deuren ·{" "}
-                        {(s.room_summary.floorAreaM2 ?? 0).toFixed(1)} m² vloer ·{" "}
-                        plafond {(s.room_summary.ceilingHeightM ?? 0).toFixed(2)} m ·{" "}
-                        {s.size_bytes ? `${(s.size_bytes / 1024 / 1024).toFixed(2)} MB` : "—"}
-                      </div>
-                      <div className="mt-2 flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => downloadScan(s.storage_path_usdz)}
-                        >
-                          <Download className="mr-1 h-4 w-4" /> USDZ
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => downloadScan(s.storage_path_json)}
-                        >
-                          <Download className="mr-1 h-4 w-4" /> JSON
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
+                  {scans.map((s) => {
+                    const primaryPath = s.storage_path ?? s.storage_path_usdz;
+                    const hasRoomPlanCounts =
+                      (s.room_summary.wallCount ?? 0) +
+                        (s.room_summary.windowCount ?? 0) +
+                        (s.room_summary.doorCount ?? 0) >
+                      0;
+                    return (
+                      <li key={s.id} className="rounded-md border p-2">
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                          <span className="font-medium">
+                            {s.room_label ?? "ruimte"}{" "}
+                            {s.file_format && (
+                              <Badge variant="outline" className="ml-1 uppercase">
+                                {s.file_format}
+                              </Badge>
+                            )}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(s.captured_at).toLocaleString("nl-NL")}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {hasRoomPlanCounts && (
+                            <>
+                              {s.room_summary.wallCount ?? 0} muren ·{" "}
+                              {s.room_summary.windowCount ?? 0} ramen ·{" "}
+                              {s.room_summary.doorCount ?? 0} deuren ·{" "}
+                            </>
+                          )}
+                          vloer {(s.room_summary.floorAreaM2 ?? 0).toFixed(1)} m² · hoogte{" "}
+                          {(s.room_summary.ceilingHeightM ?? 0).toFixed(2)} m · volume{" "}
+                          {(s.room_summary.volumeM3 ?? 0).toFixed(1)} m³ ·{" "}
+                          {s.size_bytes ? `${(s.size_bytes / 1024 / 1024).toFixed(2)} MB` : "—"}
+                        </div>
+                        {s.room_summary.note && (
+                          <p className="mt-1 text-[11px] italic text-muted-foreground">
+                            {s.room_summary.note}
+                          </p>
+                        )}
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {primaryPath && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => downloadScan(primaryPath)}
+                            >
+                              <Download className="mr-1 h-4 w-4" /> Scan-bestand
+                            </Button>
+                          )}
+                          {s.storage_path_json && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => downloadScan(s.storage_path_json!)}
+                            >
+                              <Download className="mr-1 h-4 w-4" /> JSON
+                            </Button>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
 
