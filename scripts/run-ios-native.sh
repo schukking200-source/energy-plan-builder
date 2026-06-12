@@ -135,6 +135,7 @@ ensure_ios_platform() {
   fi
 
   patch_podfile_min_ios
+  patch_package_swift_min_ios
   patch_info_plist
   patch_pbxproj ""
 }
@@ -199,41 +200,15 @@ resolve_team_id() {
     ok "Team ID geladen uit APPLE_TEAM_ID: ${team}"
   fi
 
-  if [ -z "${team}" ]; then
-    log "Team ID detecteren uit Xcode-project..."
-    team="$(detect_team_from_xcode_project || true)"
-    [ -n "${team}" ] && ok "Team ID gevonden in Xcode-project: ${team}"
-  fi
-
-  if [ -z "${team}" ]; then
-    log "Team ID detecteren uit Xcode build settings..."
-    team="$(detect_team_from_xcode_build_settings || true)"
-    [ -n "${team}" ] && ok "Team ID gevonden in Xcode build settings: ${team}"
-  fi
-
-  if [ -z "${team}" ] && [ -f "${team_file}" ]; then
-    team="$(normalize_team "$(cat "${team_file}")")"
-    [ -n "${team}" ] && ok "Team ID geladen uit ${team_file}: ${team}"
-  fi
-
-  if [ -z "${team}" ]; then
-    log "Team ID detecteren in Keychain..."
-    team="$(detect_team_from_keychain || true)"
-    [ -n "${team}" ] && ok "Team ID gevonden in Keychain: ${team}"
-  fi
-
-  if [ -z "${team}" ]; then
-    log "Team ID detecteren in provisioning profiles..."
-    team="$(detect_team_from_profiles || true)"
-    [ -n "${team}" ] && ok "Team ID gevonden in provisioning profile: ${team}"
-  fi
-
   if ! is_valid_team_id "${team}"; then
-    warn "Geen Team ID expliciet opgegeven. Xcode kiest automatisch een Personal Team via -allowProvisioningUpdates."
-    warn "Forceer eventueel met: IOS_DEVELOPMENT_TEAM=JOUWTEAMID npm run ios:run"
+    rm -f "${team_file}"
+    warn "Geen Team ID geforceerd; Keychain-ID's worden bewust genegeerd."
+    warn "Xcode kiest automatisch jouw ingelogde Personal Team via -allowProvisioningUpdates."
+    warn "Alleen forceren indien nodig: IOS_DEVELOPMENT_TEAM=JOUWTEAMID npm run ios:run"
     IOS_DEVELOPMENT_TEAM=""
     export IOS_DEVELOPMENT_TEAM
     patch_pbxproj ""
+    patch_package_swift_min_ios
     return 0
   fi
 
