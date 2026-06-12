@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "build:capacitor": "npm run build && node scripts/create-capacitor-index.mjs",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "ios:run": "bash scripts/run-ios-native.sh",
