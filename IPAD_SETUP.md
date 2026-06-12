@@ -1,94 +1,63 @@
-# iPad LiDAR-app — Stap-voor-stap live krijgen
+# iPad LiDAR-app — stabiel runpad
 
-Doel: één-tap RoomPlan-scan vanuit deze app op je iPad Pro.
+Doel: één commando dat de web-build maakt, de iOS-map schoon genereert/synchroniseert, Apple Team ID detecteert, bouwt met Xcode en de native RoomPlan-app direct op de iPad start.
 
-## Wat je nodig hebt (eenmalig)
+## Vereisten
 
-- ✅ Mac met **Xcode 15 of nieuwer** (App Store, gratis)
-- ✅ **Apple Developer Account** (€99/jaar — https://developer.apple.com)
-- ✅ **iPad Pro met LiDAR** (2020 of nieuwer) — iPadOS 17+
-- ✅ USB-C → USB-C kabel (iPad ↔ Mac) voor eerste install
-- ✅ Deze Lovable-repo lokaal via GitHub Sync (knop rechtsboven in Lovable)
+- Mac met **Xcode 15+**
+- Apple Developer-account, ingelogd in Xcode
+- **iPad Pro met LiDAR** en **iPadOS 16+**
+- USB-C kabel; iPad vertrouwt de Mac
+- Developer Mode aan op de iPad
 
----
-
-## Stap 1 — Repo lokaal trekken (5 min)
-
-1. In Lovable rechtsboven: **GitHub → Connect to GitHub** → repo aanmaken.
-2. Op je Mac in Terminal:
-   ```bash
-   git clone <jouw-github-url> isolatieplan-tool
-   cd isolatieplan-tool
-   bun install        # of: npm install
-   ```
-
-## Stap 2 — Web-build maken (2 min)
+## Normale run
 
 ```bash
-npm run build
-```
-Dit vult de `dist/client/` map die Capacitor nodig heeft.
-
-## Stap 3 — iOS-project genereren (3 min)
-
-```bash
-bunx cap add ios
-bunx cap sync ios
-```
-Resultaat: nieuwe map `ios/App/` met een Xcode-project.
-
-## Stap 4 — RoomPlan Swift-plugin toevoegen (5 min)
-
-De Swift- en Objective-C bestanden staan al in `ios-plugin/` in de repo.
-
-1. Open `ios/App/App.xcworkspace` handmatig in Finder/Xcode; gebruik hiervoor niet `cap open ios`.
-2. In Xcode-zijbalk: **App → App** (geel mapje) → rechtsklik → **Add Files to "App"…**
-3. Selecteer beide bestanden uit `ios-plugin/`:
-   - `RoomPlanPlugin.swift`
-   - `RoomPlanPlugin.m`
-4. **Belangrijk**: vink "Copy items if needed" aan en "Target: App" aan.
-5. Xcode vraagt: "Create Bridging Header?" → **Yes**.
-
-## Stap 5 — Camera-permissie + capabilities (3 min)
-
-In Xcode, klik op **App** (blauw icoon bovenaan zijbalk) → tab **Info**:
-
-1. Klik `+` onder **Custom iOS Target Properties** → voeg toe:
-   - Key: `Privacy - Camera Usage Description`
-   - Value: `Camera-toegang is nodig voor LiDAR-scanning van de woning.`
-
-Tab **Signing & Capabilities**:
-2. **Team**: kies jouw Apple Developer Team (login eerst via Xcode → Settings → Accounts).
-3. **Bundle Identifier**: laat staan (`app.lovable.7ac6a83168e3442aabfbb208b55a243d`) of maak iets eigens zoals `nl.isolatieplan.tool`.
-
-## Stap 6 — iPad aansluiten + installeren (5 min)
-
-Gebruik voortaan dit commando. Dit bouwt lokaal, synchroniseert Capacitor en
-start de **native iPad-app** direct op de aangesloten iPad via Apple's
-`xcodebuild` + `devicectl` — dus **niet** via `cap run`, geen Chrome, geen
-Safari en geen Lovable preview-URL.
-
-```bash
+npm install
 npm run ios:run
 ```
 
-Als je nog geen lokale setup hebt gedaan, gebruik eerst:
+Het script doet zelf:
+
+1. `room-plan-scanner` lokale Capacitor-plugin controleren
+2. web-build naar `dist/client` maken
+3. Capacitor `ios/App` genereren of synchroniseren
+4. `NSCameraUsageDescription` zetten
+5. iOS deployment target naar `16.0` zetten
+6. Apple Team ID ophalen uit env, Xcode-project, Xcode build settings, `.ios-dev-team`, Keychain of provisioning profiles
+7. fysieke iPad kiezen
+8. bouwen met `xcodebuild`
+9. installeren en starten met `devicectl`
+
+## Als het eerder is vastgelopen: schoon opnieuw
+
+Gebruik dit in plaats van blijven sleutelen:
 
 ```bash
-bash scripts/setup-ios.sh
+npm run ios:clean
 ```
 
-Voorwaarden:
+Dit verwijdert de gegenereerde `ios/`-map en bouwt hem opnieuw op vanuit Capacitor + de lokale `room-plan-scanner` plugin.
 
-1. Sluit iPad aan met kabel. Op iPad: **Trust This Computer**.
-2. Op iPad: **Instellingen → Privacy & Security → Developer Mode → AAN** (iPad herstart).
-3. Eerste keer: op iPad → **Instellingen → Algemeen → VPN & Apparaatbeheer → Jouw Apple ID → Vertrouwen**.
+## Team ID forceren
 
-Als de iPad niet gevonden wordt of signing nog niet klopt, stopt het script met
-een foutmelding. Het opent bewust geen Xcode, Chrome, Safari of preview-URL en
-gebruikt ook geen `npx cap run ios` / `native-run` meer.
+Als Xcode/Keychain het Team ID niet automatisch leveren:
 
-App opent automatisch op iPad en laadt de lokale build uit `dist/client/`.
+```bash
+IOS_DEVELOPMENT_TEAM=ABCDE12345 npm run ios:run
+```
+
+Het script cachet dit lokaal in `.ios-dev-team` voor volgende runs.
+
+## Belangrijk: niet meer handmatig Swift-bestanden toevoegen
+
+De oude `ios-plugin/RoomPlanPlugin.swift` route is verwijderd. De juiste route is nu uitsluitend:
+
+- `local-plugins/room-plan-scanner`
+- pluginnaam in JavaScript: `RoomPlanScanner`
+- native pluginklasse: `RoomPlanScannerPlugin`
+
+Dus: **niet** handmatig bestanden naar Xcode slepen en **niet** `npx cap run ios` gebruiken.
 
 ## Stap 7 — Testen
 
@@ -96,7 +65,7 @@ App opent automatisch op iPad en laadt de lokale build uit `dist/client/`.
 2. Ga naar **Opnames → Nieuwe opname**.
 3. Scroll naar **LiDAR / 3D-scan** → knop **"Start RoomPlan-scan"** is nu actief (blauw).
 4. Tik → Apple's RoomPlan-scanner opent fullscreen.
-5. Loop door de kamer, scan muren/deuren/ramen → tik **Done**.
+5. Loop door de kamer, scan muren/deuren/ramen → tik **Gereed**.
 6. Resultaat verschijnt terug in formulier (oppervlak, aantal ruimtes, ramen).
 7. Klik **Indienen** → USDZ + JSON worden geüpload naar onze backend.
 
@@ -129,7 +98,8 @@ Geen App Store-review nodig voor interne testers (max 100). Externe testers (tot
 | "Untrusted Developer" op iPad | Settings → VPN & Device Management → Trust |
 | Scan-knop blijft "Alleen in iPad-app" | Start met `npm run ios:run`, niet via Safari/Chrome/preview |
 | Witte pagina in app | Controleer dat `capacitor.config.ts` `webDir: "dist/client"` heeft, draai `npm run ios:run` opnieuw en lees de debug-overlay / Xcode `WV:` logs |
-| Build-error "RoomPlan module not found" | Deployment target onder iOS 16 — zet op **iOS 16.0** in target settings |
+| Build-error "RoomPlan module not found" | Draai `npm run ios:clean`; het script zet iOS target en Podfile opnieuw op 16.0 |
+| Signing blijft fout | Draai `IOS_DEVELOPMENT_TEAM=ABCDE12345 npm run ios:clean` |
 
 ---
 
