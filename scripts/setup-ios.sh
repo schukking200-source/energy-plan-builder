@@ -112,6 +112,9 @@ npm install
 log "npm run build..."
 BROWSER=none npm_config_browser=none CI=1 npm run build
 
+log "Capacitor index.html maken..."
+node scripts/create-capacitor-index.mjs
+
 # 7. Capacitor iOS
 log "Capacitor CLI controleren..."
 if ! npx --no-install cap --version >/dev/null 2>&1; then
