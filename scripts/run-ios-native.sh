@@ -159,14 +159,14 @@ if [ "${IOS_ALLOW_PROVISIONING_UPDATES:-1}" = "1" ]; then
 fi
 
 log "Native iOS-app bouwen met xcodebuild (geen cap run, geen browser)..."
-xcrun xcodebuild \
+( cd "${IOS_PROJECT_DIR}" && xcrun xcodebuild \
   "${XCODE_CONTAINER_ARGS[@]}" \
   -scheme "${SCHEME}" \
   -configuration "${CONFIGURATION}" \
   -destination "id=${TARGET}" \
-  -derivedDataPath "${DERIVED_DATA_PATH}" \
+  -derivedDataPath "DerivedData/${TARGET}" \
   "${PROVISIONING_ARGS[@]}" \
-  build
+  build )
 
 APP_PATH="$(find "${DERIVED_DATA_PATH}/Build/Products/${CONFIGURATION}-iphoneos" -maxdepth 1 -name "*.app" -type d | head -n 1)"
 if [ -z "${APP_PATH}" ]; then
