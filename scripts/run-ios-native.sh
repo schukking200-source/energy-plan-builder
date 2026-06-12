@@ -78,15 +78,19 @@ patch_info_plist() {
 
 patch_pbxproj() {
   local team="${1:-}"
-  # Patch ALLE pbxproj-bestanden onder ios/ (App, CapApp-SPM, lokale plugins),
-  # zodat geen enkel sub-project op iOS 15.0 blijft hangen.
+  # Patch ALLE pbxproj-bestanden onder ios/ naar iOS 16.0 (App, CapApp-SPM, plugins).
+  # Wanneer geen team is opgegeven, halen we DEVELOPMENT_TEAM expliciet leeg zodat
+  # Xcode + -allowProvisioningUpdates automatisch een Personal Team kunnen kiezen.
   while IFS= read -r -d '' pbxproj; do
     /usr/bin/perl -0pi -e 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9]+(\.[0-9]+)?;/IPHONEOS_DEPLOYMENT_TARGET = 16.0;/g' "${pbxproj}"
     if [ -n "${team}" ]; then
       /usr/bin/perl -0pi -e "s/DEVELOPMENT_TEAM = (\"\"|[A-Z0-9]*);/DEVELOPMENT_TEAM = ${team};/g" "${pbxproj}"
+    else
+      /usr/bin/perl -0pi -e 's/DEVELOPMENT_TEAM = [A-Z0-9]+;/DEVELOPMENT_TEAM = "";/g' "${pbxproj}"
     fi
   done < <(find ios -name 'project.pbxproj' -print0 2>/dev/null)
 }
+
 
 
 native_project_is_valid() {
@@ -217,15 +221,12 @@ resolve_team_id() {
   fi
 
   if ! is_valid_team_id "${team}"; then
-    err "Geen geldige Apple Team ID automatisch gevonden."
-    echo ""
-    echo "Stop eerst een eventuele 'dquote>' prompt met Ctrl+C."
-    echo "Zoek daarna je echte Team ID in Xcode > Settings > Accounts."
-    echo "Draai dan exact:"
-    echo "  IOS_DEVELOPMENT_TEAM=JOUWTEAMID npm run ios:clean"
-    echo ""
-    echo "Gebruik dus niet de voorbeeldwaarde ABCDE12345."
-    exit 1
+    warn "Geen Team ID expliciet opgegeven. Xcode kiest automatisch een Personal Team via -allowProvisioningUpdates."
+    warn "Forceer eventueel met: IOS_DEVELOPMENT_TEAM=JOUWTEAMID npm run ios:run"
+    IOS_DEVELOPMENT_TEAM=""
+    export IOS_DEVELOPMENT_TEAM
+    patch_pbxproj ""
+    return 0
   fi
 
   if [ ! -f "${team_file}" ] || [ "$(normalize_team "$(cat "${team_file}" 2>/dev/null || true)")" != "${team}" ]; then
@@ -237,6 +238,7 @@ resolve_team_id() {
   export IOS_DEVELOPMENT_TEAM
   patch_pbxproj "${IOS_DEVELOPMENT_TEAM}"
 }
+
 
 select_ipad() {
   log "Verbonden fysieke iPads detecteren..."
@@ -377,6 +379,10 @@ log "Oude DerivedData voor deze iPad verwijderen..."
 rm -rf "${DERIVED_DATA_PATH}"
 
 log "Native iOS-app bouwen met xcodebuild..."
+XCODE_TEAM_ARGS=()
+if [ -n "${IOS_DEVELOPMENT_TEAM:-}" ]; then
+  XCODE_TEAM_ARGS=(DEVELOPMENT_TEAM="${IOS_DEVELOPMENT_TEAM}")
+fi
 ( cd "${IOS_PROJECT_DIR}" && xcrun xcodebuild \
   "${XCODE_CONTAINER_ARGS[@]}" \
   -scheme "${SCHEME}" \
@@ -384,9 +390,10 @@ log "Native iOS-app bouwen met xcodebuild..."
   -destination "id=${TARGET}" \
   -derivedDataPath "DerivedData/${TARGET}" \
   "${PROVISIONING_ARGS[@]}" \
-  DEVELOPMENT_TEAM="${IOS_DEVELOPMENT_TEAM}" \
+  "${XCODE_TEAM_ARGS[@]}" \
   CODE_SIGN_STYLE=Automatic \
   build )
+
 
 APP_PATH="$(find "${DERIVED_DATA_PATH}/Build/Products/${CONFIGURATION}-iphoneos" -maxdepth 1 -name "*.app" -type d | head -n 1)"
 if [ -z "${APP_PATH}" ]; then
