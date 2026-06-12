@@ -91,24 +91,74 @@ if [ -f "${PBXPROJ}" ]; then
   /usr/bin/sed -i '' -E 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9]+(\.[0-9]+)?;/IPHONEOS_DEPLOYMENT_TARGET = 16.0;/g' "${PBXPROJ}" || true
 fi
 
-# Apple Development Team ID onthouden zodat code signing automatisch werkt.
+# Apple Development Team ID automatisch bepalen.
+# Volgorde: env IOS_DEVELOPMENT_TEAM → .ios-dev-team → keychain (codesigning identity)
+# → provisioning profiles → handmatige invoer als alles faalt.
 TEAM_FILE=".ios-dev-team"
+
+detect_team_from_keychain() {
+  # Output van `security find-identity -v -p codesigning` bevat regels als:
+  #   1) ABCDEF... "Apple Development: Naam (ABCDE12345)"
+  # We pakken de laatste 10-tekenige (LETTERS+CIJFERS) groep tussen haakjes.
+  security find-identity -v -p codesigning 2>/dev/null \
+    | grep -Eo '\(([A-Z0-9]{10})\)' \
+    | head -n 1 \
+    | tr -d '()'
+}
+
+detect_team_from_profiles() {
+  local dir="$HOME/Library/MobileDevice/Provisioning Profiles"
+  [ -d "${dir}" ] || return 0
+  local profile
+  for profile in "${dir}"/*.mobileprovision "${dir}"/*.provisionprofile; do
+    [ -f "${profile}" ] || continue
+    # mobileprovision is een CMS-bestand; security cms -D pakt de plist eruit.
+    local team
+    team="$(security cms -D -i "${profile}" 2>/dev/null \
+      | /usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' /dev/stdin 2>/dev/null)"
+    if printf "%s" "${team}" | grep -Eq '^[A-Z0-9]{10}$'; then
+      printf "%s" "${team}"
+      return 0
+    fi
+  done
+}
+
 if [ -z "${IOS_DEVELOPMENT_TEAM:-}" ] && [ -f "${TEAM_FILE}" ]; then
   IOS_DEVELOPMENT_TEAM="$(tr -d '[:space:]' < "${TEAM_FILE}")"
+  [ -n "${IOS_DEVELOPMENT_TEAM}" ] && ok "Team ID geladen uit ${TEAM_FILE}: ${IOS_DEVELOPMENT_TEAM}"
 fi
+
+if [ -z "${IOS_DEVELOPMENT_TEAM:-}" ]; then
+  log "Team ID automatisch detecteren in Keychain (codesigning identities)..."
+  IOS_DEVELOPMENT_TEAM="$(detect_team_from_keychain || true)"
+  [ -n "${IOS_DEVELOPMENT_TEAM}" ] && ok "Team ID gevonden in Keychain: ${IOS_DEVELOPMENT_TEAM}"
+fi
+
+if [ -z "${IOS_DEVELOPMENT_TEAM:-}" ]; then
+  log "Team ID automatisch detecteren in provisioning profiles..."
+  IOS_DEVELOPMENT_TEAM="$(detect_team_from_profiles || true)"
+  [ -n "${IOS_DEVELOPMENT_TEAM}" ] && ok "Team ID gevonden in provisioning profile: ${IOS_DEVELOPMENT_TEAM}"
+fi
+
 if [ -z "${IOS_DEVELOPMENT_TEAM:-}" ]; then
   echo ""
-  echo "Voor signing op je iPad heb je je Apple Development Team ID nodig (10 tekens)."
-  echo "Vind hem in Xcode > Settings > Accounts > selecteer je Apple ID > kolom 'Team ID',"
-  echo "of op https://developer.apple.com/account onder Membership Details."
+  echo "Geen Apple Development Team ID automatisch gevonden."
+  echo "Log eerst in Xcode in (Settings > Accounts > '+' > Apple ID) zodat de"
+  echo "codesigning-identity in je Keychain komt — dan detecteert het script hem voortaan zelf."
+  echo "Of vul je Team ID (10 tekens) nu handmatig in. Vind hem in Xcode > Settings > Accounts,"
+  echo "kolom 'Team ID', of op https://developer.apple.com/account."
   read -r -p "Team ID: " IOS_DEVELOPMENT_TEAM
   IOS_DEVELOPMENT_TEAM="$(printf "%s" "${IOS_DEVELOPMENT_TEAM}" | tr -d '[:space:]')"
   if [ -z "${IOS_DEVELOPMENT_TEAM}" ]; then
     err "Geen Team ID opgegeven. Gestopt."
     exit 1
   fi
+fi
+
+# Cachen voor volgende runs (alleen schrijven als nieuw of veranderd).
+if [ ! -f "${TEAM_FILE}" ] || [ "$(tr -d '[:space:]' < "${TEAM_FILE}" 2>/dev/null)" != "${IOS_DEVELOPMENT_TEAM}" ]; then
   printf "%s\n" "${IOS_DEVELOPMENT_TEAM}" > "${TEAM_FILE}"
-  ok "Team ID opgeslagen in ${TEAM_FILE} (wordt voortaan automatisch gebruikt)."
+  ok "Team ID gecached in ${TEAM_FILE}."
 fi
 export IOS_DEVELOPMENT_TEAM
 
