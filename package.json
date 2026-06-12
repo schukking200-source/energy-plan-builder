@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
+    "postinstall": "node scripts/ensure-roomplan-plugin.mjs",
     "build": "vite build",
     "build:capacitor": "npm run build && node scripts/create-capacitor-index.mjs",
     "build:dev": "vite build --mode development",

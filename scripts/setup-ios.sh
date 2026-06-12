@@ -109,6 +109,9 @@ fi
 log "npm install..."
 npm install
 
+log "RoomPlanScannerPlugin iOS-bronnen controleren..."
+node scripts/ensure-roomplan-plugin.mjs
+
 log "npm run build..."
 BROWSER=none npm_config_browser=none CI=1 npm run build
 
