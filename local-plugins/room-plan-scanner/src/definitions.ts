@@ -15,6 +15,10 @@ export interface ScanResult {
   jsonPath: string;
   /** Bytes van het USDZ-bestand */
   sizeBytes: number;
+  /** Base64-inhoud van het USDZ-bestand (klaar om naar Supabase Storage te uploaden) */
+  usdzBase64: string;
+  /** JSON tekst van CapturedRoom */
+  jsonString: string;
   summary: RoomSummary;
 }
 
