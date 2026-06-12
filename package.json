@@ -8,6 +8,8 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
+    "ios:run": "bash scripts/run-ios-native.sh",
+    "ios:setup": "bash scripts/setup-ios.sh",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

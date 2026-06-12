@@ -63,11 +63,28 @@ Tab **Signing & Capabilities**:
 
 ## Stap 6 — iPad aansluiten + installeren (5 min)
 
+Gebruik voortaan dit commando. Dit bouwt lokaal, synchroniseert Capacitor en
+start de **native iPad-app** direct op de aangesloten iPad — geen Chrome,
+Safari of Lovable preview-URL.
+
+```bash
+npm run ios:run
+```
+
+Als je nog geen lokale setup hebt gedaan, gebruik eerst:
+
+```bash
+bash scripts/setup-ios.sh
+```
+
+Voorwaarden:
+
 1. Sluit iPad aan met kabel. Op iPad: **Trust This Computer**.
 2. Op iPad: **Instellingen → Privacy & Security → Developer Mode → AAN** (iPad herstart).
-3. In Xcode bovenin: kies jouw iPad uit het device-dropdown.
-4. Druk **▶ Run** (of `Cmd+R`).
-5. Eerste keer: op iPad → **Instellingen → Algemeen → VPN & Apparaatbeheer → Jouw Apple ID → Vertrouwen**.
+3. Eerste keer: op iPad → **Instellingen → Algemeen → VPN & Apparaatbeheer → Jouw Apple ID → Vertrouwen**.
+
+Als signing nog niet klopt, opent het script alleen Xcode als fallback. Kies dan
+jouw iPad en druk **▶ Run**. Ook dat is native; er wordt geen browser gestart.
 
 App opent automatisch op iPad en laadt de lokale build uit `dist/`.
 
@@ -108,8 +125,8 @@ Geen App Store-review nodig voor interne testers (max 100). Externe testers (tot
 | Probleem | Oplossing |
 |---|---|
 | "Untrusted Developer" op iPad | Settings → VPN & Device Management → Trust |
-| Scan-knop blijft "Alleen in iPad-app" | Open via TestFlight/Xcode-build, niet Safari |
-| Witte pagina in app | Maak opnieuw een lokale build: `bun run build && bunx cap sync ios`, daarna Run in Xcode |
+| Scan-knop blijft "Alleen in iPad-app" | Start met `npm run ios:run`, niet via Safari/Chrome |
+| Witte pagina in app | Start opnieuw met `npm run ios:run` en lees de debug-overlay / Xcode `WV:` logs |
 | Build-error "RoomPlan module not found" | Deployment target onder iOS 16 — zet op **iOS 16.0** in target settings |
 
 ---
