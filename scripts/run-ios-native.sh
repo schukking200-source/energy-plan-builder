@@ -67,6 +67,14 @@ patch_podfile_min_ios() {
   fi
 }
 
+patch_package_swift_min_ios() {
+  # Capacitor 8 genereert ook Swift Package manifests (o.a. CapApp-SPM).
+  # Als daar nog iOS 15 in staat, faalt RoomPlanScanner ondanks gepatchte pbxproj's.
+  while IFS= read -r -d '' package_file; do
+    /usr/bin/perl -0pi -e 's/\.iOS\(\.v[0-9]+\)/.iOS(.v16)/g; s/\.iOS\("[0-9.]+"\)/.iOS("16.0")/g' "${package_file}"
+  done < <(find ios -name 'Package.swift' -print0 2>/dev/null)
+}
+
 patch_info_plist() {
   local plist="ios/App/App/Info.plist"
   [ -f "${plist}" ] || return 0
