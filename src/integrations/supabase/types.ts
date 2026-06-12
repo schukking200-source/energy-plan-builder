@@ -86,39 +86,45 @@ export type Database = {
           captured_by: string
           created_at: string
           device_meta: Json
+          file_format: string | null
           id: string
           measurement_id: string
           room_label: string | null
           room_summary: Json
           size_bytes: number | null
-          storage_path_json: string
-          storage_path_usdz: string
+          storage_path: string | null
+          storage_path_json: string | null
+          storage_path_usdz: string | null
         }
         Insert: {
           captured_at?: string
           captured_by?: string
           created_at?: string
           device_meta?: Json
+          file_format?: string | null
           id?: string
           measurement_id: string
           room_label?: string | null
           room_summary?: Json
           size_bytes?: number | null
-          storage_path_json: string
-          storage_path_usdz: string
+          storage_path?: string | null
+          storage_path_json?: string | null
+          storage_path_usdz?: string | null
         }
         Update: {
           captured_at?: string
           captured_by?: string
           created_at?: string
           device_meta?: Json
+          file_format?: string | null
           id?: string
           measurement_id?: string
           room_label?: string | null
           room_summary?: Json
           size_bytes?: number | null
-          storage_path_json?: string
-          storage_path_usdz?: string
+          storage_path?: string | null
+          storage_path_json?: string | null
+          storage_path_usdz?: string | null
         }
         Relationships: [
           {
