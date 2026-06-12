@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-# Native-only iPad runner.
-# Belangrijk: dit script gebruikt GEEN `npx cap run ios`, GEEN live-reload,
-# GEEN dev-server en GEEN browser/Chrome/Safari. Het bouwt met xcodebuild en
-# installeert/start de .app rechtstreeks via Apple's `devicectl`.
+# Schone native iPad-runner voor RoomPlan/LiDAR.
+# Eén pad, geen `cap run ios`, geen live-reload, geen browser, geen preview.
 
 set -euo pipefail
 
@@ -13,7 +11,31 @@ export CI=1
 
 log()  { printf "\n\033[1;34m==>\033[0m %s\n" "$*"; }
 ok()   { printf "\033[1;32m✓\033[0m %s\n" "$*"; }
+warn() { printf "\033[1;33m!\033[0m %s\n" "$*"; }
 err()  { printf "\n\033[1;31m✗\033[0m %s\n" "$*" >&2; }
+
+usage() {
+  cat <<'TXT'
+Gebruik:
+  npm run ios:run                 normale run
+  npm run ios:clean               iOS-map + DerivedData schoon opnieuw genereren
+
+Handige variabelen:
+  IOS_DEVELOPMENT_TEAM=ABCDE12345 npm run ios:run
+  IOS_TARGET=<iPad-UDID> IOS_CONFIRM=0 npm run ios:run
+TXT
+}
+
+for arg in "$@"; do
+  case "${arg}" in
+    --clean) IOS_CLEAN=1 ;;
+    --no-build) IOS_SKIP_BUILD=1 ;;
+    --no-sync) IOS_SKIP_SYNC=1 ;;
+    --yes|-y) IOS_CONFIRM=0 ;;
+    --help|-h) usage; exit 0 ;;
+    *) err "Onbekende optie: ${arg}"; usage; exit 1 ;;
+  esac
+done
 
 cap() {
   if [ -x "./node_modules/.bin/cap" ]; then
@@ -23,83 +45,105 @@ cap() {
   fi
 }
 
-if [ ! -f "package.json" ]; then
-  err "Start dit script vanuit de projectmap: cd isolatie-opname-app"
-  exit 1
-fi
+require_command() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    err "$2"
+    exit 1
+  fi
+}
 
-if ! command -v npm >/dev/null 2>&1; then
-  err "npm ontbreekt. Installeer eerst Node.js of draai scripts/setup-ios.sh."
-  exit 1
-fi
+patch_podfile_min_ios() {
+  local podfile="ios/App/Podfile"
+  [ -f "${podfile}" ] || return 0
 
-if ! command -v xcrun >/dev/null 2>&1; then
-  err "Xcode ontbreekt. Installeer Xcode en open het één keer om de voorwaarden te accepteren."
-  exit 1
-fi
+  if grep -Eq "^platform :ios," "${podfile}"; then
+    /usr/bin/perl -0pi -e "s/platform :ios, ['\"][0-9.]+['\"]/platform :ios, '16.0'/g" "${podfile}"
+  else
+    local tmp
+    tmp="$(mktemp)"
+    printf "platform :ios, '16.0'\n\n" > "${tmp}"
+    cat "${podfile}" >> "${tmp}"
+    mv "${tmp}" "${podfile}"
+  fi
+}
 
-if ! xcrun devicectl --help >/dev/null 2>&1; then
-  err "Apple devicectl ontbreekt. Installeer/update Xcode 15+ en draai daarna opnieuw: npm run ios:run"
-  err "Gestopt: ik open geen Xcode, Chrome, Safari of preview."
-  exit 1
-fi
+patch_info_plist() {
+  local plist="ios/App/App/Info.plist"
+  [ -f "${plist}" ] || return 0
 
-if [ ! -d "node_modules" ]; then
-  log "Dependencies installeren..."
-  npm install
-fi
+  /usr/libexec/PlistBuddy -c "Set :NSCameraUsageDescription 'Camera-toegang is nodig om met de LiDAR-scanner ruimtes in 3D op te nemen voor het isolatieplan.'" "${plist}" \
+    2>/dev/null \
+    || /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Camera-toegang is nodig om met de LiDAR-scanner ruimtes in 3D op te nemen voor het isolatieplan.'" "${plist}" >/dev/null
+}
 
-log "RoomPlanScannerPlugin iOS-bronnen controleren..."
-node scripts/ensure-roomplan-plugin.mjs
+patch_pbxproj() {
+  local team="${1:-}"
+  local pbxproj="ios/App/App.xcodeproj/project.pbxproj"
+  [ -f "${pbxproj}" ] || return 0
 
-if [ "${IOS_SKIP_BUILD:-0}" != "1" ]; then
-  log "Productie-build maken voor lokale WKWebView..."
-  BROWSER=none npm_config_browser=none CI=1 npm run build
-fi
+  /usr/bin/perl -0pi -e 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9]+(\.[0-9]+)?;/IPHONEOS_DEPLOYMENT_TARGET = 16.0;/g' "${pbxproj}"
+  if [ -n "${team}" ]; then
+    /usr/bin/perl -0pi -e "s/DEVELOPMENT_TEAM = (\"\"|[A-Z0-9]*);/DEVELOPMENT_TEAM = ${team};/g" "${pbxproj}"
+  fi
+}
 
-log "Capacitor index.html controleren/maken..."
-node scripts/create-capacitor-index.mjs
+native_project_is_valid() {
+  [ -d "ios/App/App.xcodeproj" ] && [ -f "ios/App/App/Info.plist" ] && [ -f "ios/App/Podfile" ]
+}
 
-WEB_DIR="${IOS_WEB_DIR:-dist/client}"
-if [ ! -f "${WEB_DIR}/index.html" ]; then
-  err "Native web-build ontbreekt: ${WEB_DIR}/index.html"
-  err "Dit project is TanStack Start; Capacitor moet 'dist/client' gebruiken, niet 'dist'."
-  err "Gestopt vóór iPad-installatie om een wit scherm te voorkomen. Draai opnieuw: npm run ios:run"
-  exit 1
-fi
+ensure_ios_platform() {
+  if [ "${IOS_CLEAN:-0}" = "1" ]; then
+    log "Schone iOS-reset: gegenereerde ios-map verwijderen..."
+    rm -rf ios
+  elif [ -d "ios" ] && ! native_project_is_valid; then
+    warn "iOS-map is half of inconsistent; ik genereer hem opnieuw in plaats van doorrommelen."
+    rm -rf ios
+  fi
 
-if [ ! -d "ios/App/App.xcodeproj" ] && [ ! -d "ios/App/App.xcworkspace" ]; then
-  log "iOS Xcode-project ontbreekt — Capacitor iOS-platform (her)genereren..."
-  rm -rf ios
-  cap add ios
-fi
+  if ! native_project_is_valid; then
+    log "Capacitor iOS-platform genereren..."
+    if ! cap add ios; then
+      warn "Eerste generatie faalde; ik zet iOS 16.0 in de Podfile en synchroniseer opnieuw."
+      patch_podfile_min_ios
+      cap sync ios
+    fi
+  fi
 
-if [ "${IOS_SKIP_SYNC:-0}" != "1" ]; then
-  log "Capacitor synchroniseren met iOS..."
-  cap sync ios
-fi
+  patch_podfile_min_ios
 
-if [ ! -d "ios/App/App.xcodeproj" ] && [ ! -d "ios/App/App.xcworkspace" ]; then
-  err "ios/App/App.xcodeproj is na 'cap add ios' nog steeds afwezig. Draai: npm install && npx cap add ios"
-  exit 1
-fi
+  if [ "${IOS_SKIP_SYNC:-0}" != "1" ]; then
+    log "Capacitor synchroniseren met iOS..."
+    if ! cap sync ios; then
+      warn "Sync faalde; ik herstel de iOS-minimumversie en probeer één keer opnieuw."
+      patch_podfile_min_ios
+      cap sync ios
+    fi
+  fi
 
-# RoomPlan vereist iOS 16+. cap sync kan dit terugzetten, dus elke run patchen.
-PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"
-if [ -f "${PBXPROJ}" ]; then
-  log "iOS deployment target verhogen naar 16.0..."
-  /usr/bin/sed -i '' -E 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9]+(\.[0-9]+)?;/IPHONEOS_DEPLOYMENT_TARGET = 16.0;/g' "${PBXPROJ}" || true
-fi
+  patch_podfile_min_ios
+  patch_info_plist
+  patch_pbxproj ""
+}
 
-# Apple Development Team ID automatisch bepalen.
-# Volgorde: env IOS_DEVELOPMENT_TEAM → .ios-dev-team → keychain (codesigning identity)
-# → provisioning profiles → handmatige invoer als alles faalt.
-TEAM_FILE=".ios-dev-team"
+normalize_team() {
+  printf "%s" "$1" | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]'
+}
+
+detect_team_from_xcode_project() {
+  local pbxproj="ios/App/App.xcodeproj/project.pbxproj"
+  [ -f "${pbxproj}" ] || return 0
+  grep -Eo 'DEVELOPMENT_TEAM = [A-Z0-9]{10};' "${pbxproj}" \
+    | head -n 1 \
+    | sed -E 's/DEVELOPMENT_TEAM = ([A-Z0-9]{10});/\1/'
+}
+
+detect_team_from_xcode_build_settings() {
+  [ -d "ios/App/App.xcodeproj" ] || return 0
+  ( cd ios/App && xcrun xcodebuild -project App.xcodeproj -scheme App -showBuildSettings 2>/dev/null \
+    | awk '/DEVELOPMENT_TEAM = [A-Z0-9]{10}/ {print $3; exit}' )
+}
 
 detect_team_from_keychain() {
-  # Output van `security find-identity -v -p codesigning` bevat regels als:
-  #   1) ABCDEF... "Apple Development: Naam (ABCDE12345)"
-  # We pakken de laatste 10-tekenige (LETTERS+CIJFERS) groep tussen haakjes.
   security find-identity -v -p codesigning 2>/dev/null \
     | grep -Eo '\(([A-Z0-9]{10})\)' \
     | head -n 1 \
@@ -109,13 +153,12 @@ detect_team_from_keychain() {
 detect_team_from_profiles() {
   local dir="$HOME/Library/MobileDevice/Provisioning Profiles"
   [ -d "${dir}" ] || return 0
-  local profile
+
+  local profile team
   for profile in "${dir}"/*.mobileprovision "${dir}"/*.provisionprofile; do
     [ -f "${profile}" ] || continue
-    # mobileprovision is een CMS-bestand; security cms -D pakt de plist eruit.
-    local team
     team="$(security cms -D -i "${profile}" 2>/dev/null \
-      | /usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' /dev/stdin 2>/dev/null)"
+      | /usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' /dev/stdin 2>/dev/null || true)"
     if printf "%s" "${team}" | grep -Eq '^[A-Z0-9]{10}$'; then
       printf "%s" "${team}"
       return 0
@@ -123,108 +166,190 @@ detect_team_from_profiles() {
   done
 }
 
-if [ -z "${IOS_DEVELOPMENT_TEAM:-}" ] && [ -f "${TEAM_FILE}" ]; then
-  IOS_DEVELOPMENT_TEAM="$(tr -d '[:space:]' < "${TEAM_FILE}")"
-  [ -n "${IOS_DEVELOPMENT_TEAM}" ] && ok "Team ID geladen uit ${TEAM_FILE}: ${IOS_DEVELOPMENT_TEAM}"
-fi
+resolve_team_id() {
+  local team_file=".ios-dev-team"
+  local team=""
 
-if [ -z "${IOS_DEVELOPMENT_TEAM:-}" ]; then
-  log "Team ID automatisch detecteren in Keychain (codesigning identities)..."
-  IOS_DEVELOPMENT_TEAM="$(detect_team_from_keychain || true)"
-  [ -n "${IOS_DEVELOPMENT_TEAM}" ] && ok "Team ID gevonden in Keychain: ${IOS_DEVELOPMENT_TEAM}"
-fi
+  if [ -n "${IOS_DEVELOPMENT_TEAM:-}" ]; then
+    team="$(normalize_team "${IOS_DEVELOPMENT_TEAM}")"
+    ok "Team ID geladen uit IOS_DEVELOPMENT_TEAM: ${team}"
+  elif [ -n "${DEVELOPMENT_TEAM:-}" ]; then
+    team="$(normalize_team "${DEVELOPMENT_TEAM}")"
+    ok "Team ID geladen uit DEVELOPMENT_TEAM: ${team}"
+  elif [ -n "${APPLE_TEAM_ID:-}" ]; then
+    team="$(normalize_team "${APPLE_TEAM_ID}")"
+    ok "Team ID geladen uit APPLE_TEAM_ID: ${team}"
+  fi
 
-if [ -z "${IOS_DEVELOPMENT_TEAM:-}" ]; then
-  log "Team ID automatisch detecteren in provisioning profiles..."
-  IOS_DEVELOPMENT_TEAM="$(detect_team_from_profiles || true)"
-  [ -n "${IOS_DEVELOPMENT_TEAM}" ] && ok "Team ID gevonden in provisioning profile: ${IOS_DEVELOPMENT_TEAM}"
-fi
+  if [ -z "${team}" ]; then
+    log "Team ID detecteren uit Xcode-project..."
+    team="$(detect_team_from_xcode_project || true)"
+    [ -n "${team}" ] && ok "Team ID gevonden in Xcode-project: ${team}"
+  fi
 
-if [ -z "${IOS_DEVELOPMENT_TEAM:-}" ]; then
-  echo ""
-  echo "Geen Apple Development Team ID automatisch gevonden."
-  echo "Log eerst in Xcode in (Settings > Accounts > '+' > Apple ID) zodat de"
-  echo "codesigning-identity in je Keychain komt — dan detecteert het script hem voortaan zelf."
-  echo "Of vul je Team ID (10 tekens) nu handmatig in. Vind hem in Xcode > Settings > Accounts,"
-  echo "kolom 'Team ID', of op https://developer.apple.com/account."
-  read -r -p "Team ID: " IOS_DEVELOPMENT_TEAM
-  IOS_DEVELOPMENT_TEAM="$(printf "%s" "${IOS_DEVELOPMENT_TEAM}" | tr -d '[:space:]')"
-  if [ -z "${IOS_DEVELOPMENT_TEAM}" ]; then
-    err "Geen Team ID opgegeven. Gestopt."
+  if [ -z "${team}" ]; then
+    log "Team ID detecteren uit Xcode build settings..."
+    team="$(detect_team_from_xcode_build_settings || true)"
+    [ -n "${team}" ] && ok "Team ID gevonden in Xcode build settings: ${team}"
+  fi
+
+  if [ -z "${team}" ] && [ -f "${team_file}" ]; then
+    team="$(normalize_team "$(cat "${team_file}")")"
+    [ -n "${team}" ] && ok "Team ID geladen uit ${team_file}: ${team}"
+  fi
+
+  if [ -z "${team}" ]; then
+    log "Team ID detecteren in Keychain..."
+    team="$(detect_team_from_keychain || true)"
+    [ -n "${team}" ] && ok "Team ID gevonden in Keychain: ${team}"
+  fi
+
+  if [ -z "${team}" ]; then
+    log "Team ID detecteren in provisioning profiles..."
+    team="$(detect_team_from_profiles || true)"
+    [ -n "${team}" ] && ok "Team ID gevonden in provisioning profile: ${team}"
+  fi
+
+  if [ -z "${team}" ] || ! printf "%s" "${team}" | grep -Eq '^[A-Z0-9]{10}$'; then
+    echo ""
+    echo "Geen geldige Apple Team ID automatisch gevonden."
+    echo "Log in Xcode in met je Apple Developer-account of draai:"
+    echo "  IOS_DEVELOPMENT_TEAM=ABCDE12345 npm run ios:run"
+    echo "Je Team ID is exact 10 tekens."
+    read -r -p "Team ID: " team
+    team="$(normalize_team "${team}")"
+  fi
+
+  if ! printf "%s" "${team}" | grep -Eq '^[A-Z0-9]{10}$'; then
+    err "Ongeldige Team ID: '${team}'. Verwacht exact 10 hoofdletters/cijfers."
     exit 1
   fi
-fi
 
-# Cachen voor volgende runs (alleen schrijven als nieuw of veranderd).
-if [ ! -f "${TEAM_FILE}" ] || [ "$(tr -d '[:space:]' < "${TEAM_FILE}" 2>/dev/null)" != "${IOS_DEVELOPMENT_TEAM}" ]; then
-  printf "%s\n" "${IOS_DEVELOPMENT_TEAM}" > "${TEAM_FILE}"
-  ok "Team ID gecached in ${TEAM_FILE}."
-fi
-export IOS_DEVELOPMENT_TEAM
+  if [ ! -f "${team_file}" ] || [ "$(normalize_team "$(cat "${team_file}" 2>/dev/null || true)")" != "${team}" ]; then
+    printf "%s\n" "${team}" > "${team_file}"
+    ok "Team ID gecached in ${team_file}."
+  fi
 
-log "Verbonden fysieke iPads detecteren..."
-DEVICES_RAW="$(xcrun xctrace list devices 2>/dev/null \
-  | awk '/== Simulators ==/{exit} /\([0-9A-Fa-f-]{20,}\)/ && $0 !~ /Mac/ && $0 !~ /Simulator/ {print}')"
-IPADS="$(printf "%s\n" "${DEVICES_RAW}" | grep -i "iPad" || true)"
+  IOS_DEVELOPMENT_TEAM="${team}"
+  export IOS_DEVELOPMENT_TEAM
+  patch_pbxproj "${IOS_DEVELOPMENT_TEAM}"
+}
 
-if [ -z "${IPADS}" ]; then
-  err "Geen aangesloten fysieke iPad gevonden. Sluit de iPad via USB-C aan en kies 'Trust This Computer'."
-  err "Gestopt: ik open geen Xcode, Chrome, Safari of preview. Sluit eerst de iPad aan en draai opnieuw: npm run ios:run"
-  exit 1
-fi
+select_ipad() {
+  log "Verbonden fysieke iPads detecteren..."
+  local devices_raw ipads ipad_count selected target version major
+  devices_raw="$(xcrun xctrace list devices 2>/dev/null \
+    | awk '/== Simulators ==/{exit} /\([0-9A-Fa-f-]{20,}\)/ && $0 !~ /Mac/ && $0 !~ /Simulator/ {print}')"
+  ipads="$(printf "%s\n" "${devices_raw}" | grep -i "iPad" || true)"
 
-IPAD_COUNT="$(printf "%s\n" "${IPADS}" | wc -l | tr -d ' ')"
-log "Gevonden iPad(s):"
-printf "%s\n" "${IPADS}" | nl -ba
-
-TARGET="${IOS_TARGET:-}"
-if [ -n "${TARGET}" ]; then
-  SELECTED="$(printf "%s\n" "${IPADS}" | grep -F "${TARGET}" || true)"
-  if [ -z "${SELECTED}" ]; then
-    err "IOS_TARGET=${TARGET} is niet gevonden tussen de aangesloten fysieke iPads."
+  if [ -z "${ipads}" ]; then
+    err "Geen aangesloten fysieke iPad gevonden. Sluit de iPad via USB-C aan en kies 'Trust This Computer'."
+    err "Dit script opent geen Xcode, Chrome, Safari of preview."
     exit 1
   fi
-elif [ "${IPAD_COUNT}" -gt 1 ]; then
-  echo ""
-  read -r -p "Welke iPad gebruiken? Voer regelnummer in: " CHOICE
-  if ! printf "%s" "${CHOICE}" | grep -Eq '^[0-9]+$'; then
-    err "Ongeldige keuze: ${CHOICE}"
-    exit 1
-  fi
-  SELECTED="$(printf "%s\n" "${IPADS}" | sed -n "${CHOICE}p")"
-  if [ -z "${SELECTED}" ]; then
-    err "Geen iPad op regel ${CHOICE}."
-    exit 1
-  fi
-  TARGET="$(printf "%s" "${SELECTED}" | sed -E 's/.*\(([0-9A-Fa-f-]{20,})\).*/\1/')"
-else
-  SELECTED="${IPADS}"
-  TARGET="$(printf "%s" "${SELECTED}" | sed -E 's/.*\(([0-9A-Fa-f-]{20,})\).*/\1/')"
-fi
 
-DEVICE_NAME="$(printf "%s" "${SELECTED}" | sed -E 's/ \([0-9.]+\) \([0-9A-Fa-f-]{20,}\).*//' | sed -E 's/^[[:space:]]+//')"
+  ipad_count="$(printf "%s\n" "${ipads}" | wc -l | tr -d ' ')"
+  log "Gevonden iPad(s):"
+  printf "%s\n" "${ipads}" | nl -ba
 
-if [ -z "${TARGET}" ] || [ "${TARGET}" = "${SELECTED}" ]; then
-  err "Geen geldige iPad-UDID geselecteerd."
-  exit 1
-fi
-
-echo ""
-log "Geselecteerde iPad:"
-echo "    Naam : ${DEVICE_NAME}"
-echo "    UDID : ${TARGET}"
-echo ""
-if [ "${IOS_CONFIRM:-1}" = "1" ]; then
-  read -r -p "Is dit de juiste iPad? [y/N]: " CONFIRM
-  case "${CONFIRM}" in
-    y|Y|yes|YES|j|J|ja|JA) ok "Bevestigd." ;;
-    *)
-      err "Geannuleerd door gebruiker. Sluit de juiste iPad aan en draai opnieuw: npm run ios:run"
-      err "Of forceer een target: IOS_TARGET=<udid> npm run ios:run"
+  target="${IOS_TARGET:-}"
+  if [ -n "${target}" ]; then
+    selected="$(printf "%s\n" "${ipads}" | grep -F "${target}" || true)"
+    if [ -z "${selected}" ]; then
+      err "IOS_TARGET=${target} is niet gevonden tussen de aangesloten fysieke iPads."
       exit 1
-      ;;
-  esac
+    fi
+  elif [ "${ipad_count}" -gt 1 ]; then
+    echo ""
+    read -r -p "Welke iPad gebruiken? Voer regelnummer in: " CHOICE
+    if ! printf "%s" "${CHOICE}" | grep -Eq '^[0-9]+$'; then
+      err "Ongeldige keuze: ${CHOICE}"
+      exit 1
+    fi
+    selected="$(printf "%s\n" "${ipads}" | sed -n "${CHOICE}p")"
+    if [ -z "${selected}" ]; then
+      err "Geen iPad op regel ${CHOICE}."
+      exit 1
+    fi
+    target="$(printf "%s" "${selected}" | sed -E 's/.*\(([0-9A-Fa-f-]{20,})\).*/\1/')"
+  else
+    selected="${ipads}"
+    target="$(printf "%s" "${selected}" | sed -E 's/.*\(([0-9A-Fa-f-]{20,})\).*/\1/')"
+  fi
+
+  DEVICE_NAME="$(printf "%s" "${selected}" | sed -E 's/ \([0-9.]+\) \([0-9A-Fa-f-]{20,}\).*//' | sed -E 's/^[[:space:]]+//')"
+  TARGET="${target}"
+
+  if [ -z "${TARGET}" ] || [ "${TARGET}" = "${selected}" ]; then
+    err "Geen geldige iPad-UDID geselecteerd."
+    exit 1
+  fi
+
+  version="$(printf "%s" "${selected}" | sed -nE 's/.* \(([0-9]+(\.[0-9]+){0,2})\) \([0-9A-Fa-f-]{20,}\).*/\1/p')"
+  major="${version%%.*}"
+  if [ -n "${major}" ] && printf "%s" "${major}" | grep -Eq '^[0-9]+$' && [ "${major}" -lt 16 ]; then
+    err "RoomPlan vereist iPadOS 16 of hoger; geselecteerde iPad draait ${version}."
+    exit 1
+  fi
+
+  echo ""
+  log "Geselecteerde iPad:"
+  echo "    Naam   : ${DEVICE_NAME}"
+  echo "    iPadOS : ${version:-onbekend}"
+  echo "    UDID   : ${TARGET}"
+
+  if [ "${IOS_CONFIRM:-1}" = "1" ]; then
+    echo ""
+    read -r -p "Is dit de juiste iPad? [y/N]: " CONFIRM
+    case "${CONFIRM}" in
+      y|Y|yes|YES|j|J|ja|JA) ok "Bevestigd." ;;
+      *)
+        err "Geannuleerd. Forceer eventueel een target: IOS_TARGET=<udid> npm run ios:run"
+        exit 1
+        ;;
+    esac
+  fi
+}
+
+if [ ! -f "package.json" ]; then
+  err "Start dit script vanuit de projectmap."
+  exit 1
 fi
+
+require_command npm "npm ontbreekt. Installeer Node.js of draai scripts/setup-ios.sh."
+require_command xcrun "Xcode ontbreekt. Installeer Xcode en open het één keer om de voorwaarden te accepteren."
+
+if ! xcrun devicectl --help >/dev/null 2>&1; then
+  err "Apple devicectl ontbreekt. Installeer/update Xcode 15+ en draai daarna opnieuw: npm run ios:run"
+  exit 1
+fi
+
+if [ ! -d "node_modules" ]; then
+  log "Dependencies installeren..."
+  npm install
+fi
+
+log "RoomPlanScannerPlugin controleren..."
+node scripts/ensure-roomplan-plugin.mjs
+
+if [ "${IOS_SKIP_BUILD:-0}" != "1" ]; then
+  log "Web-build maken voor lokale WKWebView..."
+  BROWSER=none npm_config_browser=none CI=1 npm run build
+fi
+
+log "Capacitor index.html maken/controleren..."
+node scripts/create-capacitor-index.mjs
+
+WEB_DIR="${IOS_WEB_DIR:-dist/client}"
+if [ ! -f "${WEB_DIR}/index.html" ]; then
+  err "Native web-build ontbreekt: ${WEB_DIR}/index.html"
+  err "Capacitor moet voor TanStack Start 'dist/client' gebruiken."
+  exit 1
+fi
+
+ensure_ios_platform
+resolve_team_id
+select_ipad
 
 IOS_PROJECT_DIR="ios/App"
 SCHEME="${IOS_SCHEME:-App}"
@@ -236,7 +361,7 @@ if [ -d "${IOS_PROJECT_DIR}/App.xcworkspace" ]; then
 elif [ -d "${IOS_PROJECT_DIR}/App.xcodeproj" ]; then
   XCODE_CONTAINER_ARGS=(-project "App.xcodeproj")
 else
-  err "Geen iOS Xcode-project gevonden in ${IOS_PROJECT_DIR}. Draai eerst: npm run ios:setup"
+  err "Geen iOS Xcode-project gevonden in ${IOS_PROJECT_DIR}. Draai: npm run ios:clean"
   exit 1
 fi
 
@@ -245,7 +370,10 @@ if [ "${IOS_ALLOW_PROVISIONING_UPDATES:-1}" = "1" ]; then
   PROVISIONING_ARGS=(-allowProvisioningUpdates)
 fi
 
-log "Native iOS-app bouwen met xcodebuild (geen cap run, geen browser)..."
+log "Oude DerivedData voor deze iPad verwijderen..."
+rm -rf "${DERIVED_DATA_PATH}"
+
+log "Native iOS-app bouwen met xcodebuild..."
 ( cd "${IOS_PROJECT_DIR}" && xcrun xcodebuild \
   "${XCODE_CONTAINER_ARGS[@]}" \
   -scheme "${SCHEME}" \
@@ -269,10 +397,10 @@ if [ -z "${BUNDLE_ID}" ]; then
   exit 1
 fi
 
-log "Native app installeren op iPad via devicectl..."
+log "Native app installeren op iPad..."
 xcrun devicectl device install app --device "${TARGET}" "${APP_PATH}"
 
-log "Native app starten op iPad via devicectl..."
+log "Native app starten op iPad..."
 xcrun devicectl device process launch --device "${TARGET}" "${BUNDLE_ID}"
 
-ok "Native iPad-app gestart via devicectl. Chrome/Safari/Lovable-preview zijn niet gebruikt."
+ok "Native iPad-app gestart. LiDAR-scan loopt via de RoomPlanScanner-plugin; geen browser/preview gebruikt."
