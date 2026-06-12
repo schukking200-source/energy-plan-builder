@@ -20,7 +20,15 @@ import { z } from "zod";
 import { Loader2, MapPin, Upload, Smartphone } from "lucide-react";
 import { ALLOWED_SCAN_EXTENSIONS, MAX_SCAN_BYTES, validateScanFile } from "@/lib/upload-validation";
 import { Capacitor } from "@capacitor/core";
-import RoomPlan, { type RoomPlanResult } from "@/plugins/RoomPlanPlugin";
+import { RoomPlanScanner } from "room-plan-scanner";
+
+type RoomPlanResult = {
+  area: number;
+  roomCount: number;
+  totalWindows: number;
+  totalDoors: number;
+  rooms: never[];
+};
 
 export const Route = createFileRoute("/_authenticated/intake/new")({
   head: () => ({ meta: [{ title: "Nieuwe opname — Isolatieplan Tool" }] }),
