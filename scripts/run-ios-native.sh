@@ -87,14 +87,13 @@ patch_info_plist() {
 patch_pbxproj() {
   local team="${1:-}"
   # Patch ALLE pbxproj-bestanden onder ios/ naar iOS 16.0 (App, CapApp-SPM, plugins).
-  # Wanneer geen team is opgegeven, halen we DEVELOPMENT_TEAM expliciet leeg zodat
-  # Xcode + -allowProvisioningUpdates automatisch een Personal Team kunnen kiezen.
+  # Signing werkt op fysieke iPads alleen betrouwbaar als DEVELOPMENT_TEAM expliciet staat.
   while IFS= read -r -d '' pbxproj; do
     /usr/bin/perl -0pi -e 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9]+(\.[0-9]+)?;/IPHONEOS_DEPLOYMENT_TARGET = 16.0;/g' "${pbxproj}"
     if [ -n "${team}" ]; then
       /usr/bin/perl -0pi -e "s/DEVELOPMENT_TEAM = (\"\"|[A-Z0-9]*);/DEVELOPMENT_TEAM = ${team};/g" "${pbxproj}"
     else
-      /usr/bin/perl -0pi -e 's/DEVELOPMENT_TEAM = [A-Z0-9]+;/DEVELOPMENT_TEAM = "";/g' "${pbxproj}"
+      /usr/bin/perl -0pi -e 's/DEVELOPMENT_TEAM = (""|[A-Z0-9]*);//g' "${pbxproj}"
     fi
   done < <(find ios -name 'project.pbxproj' -print0 2>/dev/null)
 }
@@ -198,18 +197,27 @@ resolve_team_id() {
   elif [ -n "${APPLE_TEAM_ID:-}" ]; then
     team="$(normalize_team "${APPLE_TEAM_ID}")"
     ok "Team ID geladen uit APPLE_TEAM_ID: ${team}"
+  elif [ -f "${team_file}" ]; then
+    team="$(normalize_team "$(cat "${team_file}" 2>/dev/null || true)")"
+    [ -n "${team}" ] && ok "Team ID geladen uit ${team_file}: ${team}"
+  elif team="$(normalize_team "$(detect_team_from_xcode_project)")" && is_valid_team_id "${team}"; then
+    ok "Team ID gevonden in Xcode-project: ${team}"
+  elif team="$(normalize_team "$(detect_team_from_xcode_build_settings)")" && is_valid_team_id "${team}"; then
+    ok "Team ID gevonden in Xcode build settings: ${team}"
+  elif team="$(normalize_team "$(detect_team_from_keychain)")" && is_valid_team_id "${team}"; then
+    ok "Team ID gevonden in Keychain: ${team}"
+  elif team="$(normalize_team "$(detect_team_from_profiles)")" && is_valid_team_id "${team}"; then
+    ok "Team ID gevonden in provisioning profile: ${team}"
   fi
 
   if ! is_valid_team_id "${team}"; then
     rm -f "${team_file}"
-    warn "Geen Team ID geforceerd; Keychain-ID's worden bewust genegeerd."
-    warn "Xcode kiest automatisch jouw ingelogde Personal Team via -allowProvisioningUpdates."
-    warn "Alleen forceren indien nodig: IOS_DEVELOPMENT_TEAM=JOUWTEAMID npm run ios:run"
-    IOS_DEVELOPMENT_TEAM=""
-    export IOS_DEVELOPMENT_TEAM
     patch_pbxproj ""
     patch_package_swift_min_ios
-    return 0
+    err "Geen Apple Development Team ID gevonden. Fysieke iPad-builds hebben die verplicht nodig."
+    err "Draai éénmalig: IOS_DEVELOPMENT_TEAM=8LBCX3BNXV npm run ios:run"
+    err "Of zet je eigen Team ID in plaats van 8LBCX3BNXV als Xcode een andere toont."
+    exit 1
   fi
 
   if [ ! -f "${team_file}" ] || [ "$(normalize_team "$(cat "${team_file}" 2>/dev/null || true)")" != "${team}" ]; then
