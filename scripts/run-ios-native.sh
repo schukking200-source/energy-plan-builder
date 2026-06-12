@@ -379,6 +379,10 @@ log "Oude DerivedData voor deze iPad verwijderen..."
 rm -rf "${DERIVED_DATA_PATH}"
 
 log "Native iOS-app bouwen met xcodebuild..."
+XCODE_TEAM_ARGS=()
+if [ -n "${IOS_DEVELOPMENT_TEAM:-}" ]; then
+  XCODE_TEAM_ARGS=(DEVELOPMENT_TEAM="${IOS_DEVELOPMENT_TEAM}")
+fi
 ( cd "${IOS_PROJECT_DIR}" && xcrun xcodebuild \
   "${XCODE_CONTAINER_ARGS[@]}" \
   -scheme "${SCHEME}" \
@@ -386,9 +390,10 @@ log "Native iOS-app bouwen met xcodebuild..."
   -destination "id=${TARGET}" \
   -derivedDataPath "DerivedData/${TARGET}" \
   "${PROVISIONING_ARGS[@]}" \
-  DEVELOPMENT_TEAM="${IOS_DEVELOPMENT_TEAM}" \
+  "${XCODE_TEAM_ARGS[@]}" \
   CODE_SIGN_STYLE=Automatic \
   build )
+
 
 APP_PATH="$(find "${DERIVED_DATA_PATH}/Build/Products/${CONFIGURATION}-iphoneos" -maxdepth 1 -name "*.app" -type d | head -n 1)"
 if [ -z "${APP_PATH}" ]; then
