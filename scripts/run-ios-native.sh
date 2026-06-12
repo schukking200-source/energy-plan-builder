@@ -142,7 +142,7 @@ fi
 IOS_PROJECT_DIR="ios/App"
 SCHEME="${IOS_SCHEME:-App}"
 CONFIGURATION="${IOS_CONFIGURATION:-Debug}"
-DERIVED_DATA_PATH="${IOS_DERIVED_DATA_PATH:-${IOS_PROJECT_DIR}/DerivedData/${TARGET}}"
+DERIVED_DATA_PATH="${IOS_PROJECT_DIR}/DerivedData/${TARGET}"
 
 if [ -d "${IOS_PROJECT_DIR}/App.xcworkspace" ]; then
   XCODE_CONTAINER_ARGS=(-workspace "App.xcworkspace")
