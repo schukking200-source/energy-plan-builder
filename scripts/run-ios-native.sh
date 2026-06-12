@@ -65,14 +65,20 @@ if [ ! -f "${WEB_DIR}/index.html" ]; then
   exit 1
 fi
 
-if [ ! -d "ios" ]; then
-  log "iOS platform toevoegen..."
+if [ ! -d "ios/App/App.xcodeproj" ] && [ ! -d "ios/App/App.xcworkspace" ]; then
+  log "iOS Xcode-project ontbreekt — Capacitor iOS-platform (her)genereren..."
+  rm -rf ios
   cap add ios
 fi
 
 if [ "${IOS_SKIP_SYNC:-0}" != "1" ]; then
   log "Capacitor synchroniseren met iOS..."
   cap sync ios
+fi
+
+if [ ! -d "ios/App/App.xcodeproj" ] && [ ! -d "ios/App/App.xcworkspace" ]; then
+  err "ios/App/App.xcodeproj is na 'cap add ios' nog steeds afwezig. Draai: npm install && npx cap add ios"
+  exit 1
 fi
 
 log "Verbonden fysieke iPads detecteren..."
