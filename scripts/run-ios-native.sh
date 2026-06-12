@@ -54,6 +54,9 @@ if [ "${IOS_SKIP_BUILD:-0}" != "1" ]; then
   BROWSER=none npm_config_browser=none CI=1 npm run build
 fi
 
+log "Capacitor index.html controleren/maken..."
+node scripts/create-capacitor-index.mjs
+
 WEB_DIR="${IOS_WEB_DIR:-dist/client}"
 if [ ! -f "${WEB_DIR}/index.html" ]; then
   err "Native web-build ontbreekt: ${WEB_DIR}/index.html"
