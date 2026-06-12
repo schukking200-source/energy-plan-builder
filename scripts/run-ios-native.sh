@@ -39,18 +39,61 @@ fi
 log "Capacitor synchroniseren met iOS..."
 npx cap sync ios
 
-log "Verbonden fysieke iPad zoeken..."
-TARGET="${IOS_TARGET:-}"
-if [ -z "${TARGET}" ]; then
-  TARGET="$(xcrun xctrace list devices 2>/dev/null \
-    | awk '/== Simulators ==/{exit} /\([0-9A-Fa-f-]{20,}\)/ && $0 !~ /Mac/ {print $0; exit}' \
-    | sed -E 's/.*\(([0-9A-Fa-f-]{20,})\).*/\1/')"
-fi
+log "Verbonden fysieke iPads detecteren..."
+# Lijst van alle aangesloten fysieke devices (geen Mac, geen Simulator)
+DEVICES_RAW="$(xcrun xctrace list devices 2>/dev/null \
+  | awk '/== Simulators ==/{exit} /\([0-9A-Fa-f-]{20,}\)/ && $0 !~ /Mac/ {print}')"
 
-if [ -z "${TARGET}" ]; then
+# Filter alleen iPads
+IPADS="$(printf "%s\n" "${DEVICES_RAW}" | grep -i "iPad" || true)"
+
+if [ -z "${IPADS}" ]; then
   err "Geen aangesloten fysieke iPad gevonden. Sluit de iPad via USB-C aan en kies 'Trust This Computer'."
   err "Gestopt: ik open geen Xcode, Chrome, Safari of preview. Sluit eerst de iPad aan en draai opnieuw: npm run ios:run"
   exit 1
+fi
+
+IPAD_COUNT="$(printf "%s\n" "${IPADS}" | wc -l | tr -d ' ')"
+log "Gevonden iPad(s):"
+printf "%s\n" "${IPADS}" | nl -ba
+
+TARGET="${IOS_TARGET:-}"
+if [ -z "${TARGET}" ]; then
+  if [ "${IPAD_COUNT}" -gt 1 ]; then
+    echo ""
+    read -r -p "Welke iPad gebruiken? Voer regelnummer in: " CHOICE
+    SELECTED="$(printf "%s\n" "${IPADS}" | sed -n "${CHOICE}p")"
+  else
+    SELECTED="${IPADS}"
+  fi
+  TARGET="$(printf "%s" "${SELECTED}" | sed -E 's/.*\(([0-9A-Fa-f-]{20,})\).*/\1/')"
+  DEVICE_NAME="$(printf "%s" "${SELECTED}" | sed -E 's/ \([0-9.]+\) \([0-9A-Fa-f-]{20,}\).*//' | sed -E 's/^[[:space:]]+//')"
+else
+  SELECTED="$(printf "%s\n" "${IPADS}" | grep "${TARGET}" || true)"
+  DEVICE_NAME="$(printf "%s" "${SELECTED}" | sed -E 's/ \([0-9.]+\) \([0-9A-Fa-f-]{20,}\).*//' | sed -E 's/^[[:space:]]+//')"
+  [ -z "${DEVICE_NAME}" ] && DEVICE_NAME="(opgegeven via IOS_TARGET)"
+fi
+
+if [ -z "${TARGET}" ]; then
+  err "Geen geldige iPad geselecteerd."
+  exit 1
+fi
+
+echo ""
+log "Geselecteerde iPad:"
+echo "    Naam : ${DEVICE_NAME}"
+echo "    UDID : ${TARGET}"
+echo ""
+if [ "${IOS_CONFIRM:-1}" = "1" ]; then
+  read -r -p "Is dit de juiste iPad? [y/N]: " CONFIRM
+  case "${CONFIRM}" in
+    y|Y|yes|YES|j|J|ja|JA) ok "Bevestigd." ;;
+    *)
+      err "Geannuleerd door gebruiker. Sluit de juiste iPad aan en draai opnieuw: npm run ios:run"
+      err "Of forceer een target: IOS_TARGET=<udid> npm run ios:run"
+      exit 1
+      ;;
+  esac
 fi
 
 log "Native app installeren en starten op iPad (target: ${TARGET})..."
