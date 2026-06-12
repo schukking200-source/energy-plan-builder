@@ -7,7 +7,6 @@ const sourceRoot = resolve(root, "local-plugins/room-plan-scanner");
 const installedRoot = resolve(root, "node_modules/room-plan-scanner");
 const requiredFiles = [
   "ios/Sources/RoomPlanScannerPlugin/RoomPlanScannerPlugin.swift",
-  "ios/Sources/RoomPlanScannerPlugin/RoomPlanScannerPlugin.m",
   "Package.swift",
   "package.json",
 ];
