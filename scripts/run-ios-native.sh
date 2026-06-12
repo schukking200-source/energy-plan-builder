@@ -84,6 +84,34 @@ if [ ! -d "ios/App/App.xcodeproj" ] && [ ! -d "ios/App/App.xcworkspace" ]; then
   exit 1
 fi
 
+# RoomPlan vereist iOS 16+. cap sync kan dit terugzetten, dus elke run patchen.
+PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"
+if [ -f "${PBXPROJ}" ]; then
+  log "iOS deployment target verhogen naar 16.0..."
+  /usr/bin/sed -i '' -E 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9]+(\.[0-9]+)?;/IPHONEOS_DEPLOYMENT_TARGET = 16.0;/g' "${PBXPROJ}" || true
+fi
+
+# Apple Development Team ID onthouden zodat code signing automatisch werkt.
+TEAM_FILE=".ios-dev-team"
+if [ -z "${IOS_DEVELOPMENT_TEAM:-}" ] && [ -f "${TEAM_FILE}" ]; then
+  IOS_DEVELOPMENT_TEAM="$(tr -d '[:space:]' < "${TEAM_FILE}")"
+fi
+if [ -z "${IOS_DEVELOPMENT_TEAM:-}" ]; then
+  echo ""
+  echo "Voor signing op je iPad heb je je Apple Development Team ID nodig (10 tekens)."
+  echo "Vind hem in Xcode > Settings > Accounts > selecteer je Apple ID > kolom 'Team ID',"
+  echo "of op https://developer.apple.com/account onder Membership Details."
+  read -r -p "Team ID: " IOS_DEVELOPMENT_TEAM
+  IOS_DEVELOPMENT_TEAM="$(printf "%s" "${IOS_DEVELOPMENT_TEAM}" | tr -d '[:space:]')"
+  if [ -z "${IOS_DEVELOPMENT_TEAM}" ]; then
+    err "Geen Team ID opgegeven. Gestopt."
+    exit 1
+  fi
+  printf "%s\n" "${IOS_DEVELOPMENT_TEAM}" > "${TEAM_FILE}"
+  ok "Team ID opgeslagen in ${TEAM_FILE} (wordt voortaan automatisch gebruikt)."
+fi
+export IOS_DEVELOPMENT_TEAM
+
 log "Verbonden fysieke iPads detecteren..."
 DEVICES_RAW="$(xcrun xctrace list devices 2>/dev/null \
   | awk '/== Simulators ==/{exit} /\([0-9A-Fa-f-]{20,}\)/ && $0 !~ /Mac/ && $0 !~ /Simulator/ {print}')"
