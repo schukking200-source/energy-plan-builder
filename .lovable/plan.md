@@ -1,56 +1,60 @@
+# Plan: RoomPlan LiDAR-scan op de iPad
 
-## 1. Roadmap-tabel uitbreiden (data-migratie, geen schemawijziging)
+Apple RoomPlan gebruikt de LiDAR-sensor van je iPad Pro om automatisch een 3D-plattegrond te maken (muren, ramen, deuren, plafondhoogte) met afmetingen. Het werkt alleen native — niet in de browser/preview.
 
-Bestaande `roadmap_task`-rijen met `module = 'go_live'` worden opgesplitst in vier nieuwe modules. Schema verandert niet — alleen `module`, `module_label`, `module_order`, `is_golive_blocker`, `is_project_blocker` van bestaande/nieuwe rijen.
+## Wat de gebruiker straks ziet
 
-Nieuwe modules (module_order 90–93, blijven onderaan):
+In het opname-scherm van een woning komt een nieuwe knop **"Ruimte scannen (LiDAR)"**. Tik → fullscreen camera-overlay van Apple → langzaam door de kamer lopen → "Done" → de app krijgt:
 
-| key | label | doel |
-|---|---|---|
-| `golive_infra` | 9a Infrastructuur (Azure) | Landingszone, Postgres, Key Vault, Blob, Monitor, migratiescript |
-| `golive_identity` | 9b Identiteit (Entra B2C) | Tenant, MFA, rolmapping, cutover auth |
-| `golive_compliance` | 9c Compliance & ISMS | ISMS-docs, DPIA, VWO's, pentest, logging/retentie |
-| `golive_cutover` | 9d Cutover | DNS, downtime-window, rollback, dataoverdracht |
+- USDZ-bestand (3D-model, om later te bekijken)
+- JSON met alle muren, ramen, deuren + afmetingen in meters
+- Automatisch geüpload naar de bestaande `lidar-scans` bucket
+- Gekoppeld aan de opname (`in_measurement`)
 
-Per module ~4–6 taken (`type='enterprise'`, `is_golive_blocker=true`). Bestaande Azure/BIO2-taken uit `go_live` worden gemapt naar de juiste sub-module; geen taken verloren. Eén SQL-migratie via supabase--migration met `UPDATE` + `INSERT` statements.
+## Technische opzet
 
-## 2. Document `.lovable/ISO27001_MIGRATIE.md`
+### 1. Custom Capacitor-plugin `RoomPlanScanner` (native Swift)
+Locatie: `ios/App/App/Plugins/RoomPlanScanner/`
+- ~150 regels Swift die `RoomCaptureView` (iOS 16+) presenteren
+- Bij "Done" exporteert het USDZ + JSON naar de app-sandbox en geeft de bestandspaden terug aan JS
+- Plugin geregistreerd in `Package.swift` zodat `cap sync` hem meeneemt
 
-Nieuw bestand, ~250 regels, secties:
+### 2. TypeScript-wrapper
+`src/integrations/roomplan/index.ts` — typesafe `scanRoom()` functie, checkt of we native draaien (anders nette foutmelding).
 
-1. **Scope & doel** — wat valt onder ISMS, wat niet
-2. **Wat blijft in Lovable** — broncode, migraties, plugin (zoals eerder beschreven)
-3. **Wat verhuist naar Azure** — tabel per onderdeel (DB, Auth, Storage, Secrets, Functies, Logging, Backups, Email) met:
-   - huidige locatie in Lovable Cloud
-   - target Azure-service (concreet: Azure Database for PostgreSQL Flexible Server, Entra External ID, Blob Storage met CMK, Key Vault, Container Apps, Log Analytics)
-   - waarom (ISO/BIO2-control referentie: A.8.24, A.5.17, A.8.15, etc.)
-4. **Datamapping** — per tabel (`id_profiles`, `in_measurement`, `aud_events`, `user_roles`, `roadmap_task`) classificatie + retentie + bewaarplaats
-5. **ISMS-deliverables** — checklist: SoA, risicoanalyse, DPIA, VWO's, pentest, incident response, toegangsmatrix, leveranciersbeoordeling
-6. **Cutover-draaiboek** — pg_dump → Azure restore, storage sync, DNS-switch, rollback
-7. **Verantwoordelijkheden** — jij vs. enterprise-partij vs. Lovable
-8. **Verwijzing naar roadmap** — link naar modules 9a–9d
+### 3. UI-component `<LidarScanButton>`
+- Toont alleen op iOS-native (verborgen in browser-preview)
+- Start scan → toont voortgang → leest bestanden → upload naar Storage → koppelt aan `in_measurement.id`
+- Gebruikt in het opname-formulier (`src/routes/intake.new.tsx` of `_id.tsx`)
 
-## 3. Volgorde van uitvoering
+### 4. Database
+Nieuwe tabel `in_lidar_scan` (append-only, gekoppeld aan opname):
+- `measurement_id`, `storage_path_usdz`, `storage_path_json`, `room_summary` (jsonb: aantal muren, totaal m², plafondhoogte), `captured_by`
+- RLS: adviseur ziet eigen scans; reviewers (kwaliteitscommissie/steekproef/admin) zien alles
+- Storage policies op `lidar-scans` bucket: alleen eigen captured_by mag uploaden; reviewers mogen lezen
 
-1. `supabase--migration` — data-update voor modules 9a–9d (geen schemawijziging)
-2. Bestand `.lovable/ISO27001_MIGRATIE.md` schrijven
-3. Korte verwijzing toevoegen aan `.lovable/plan.md` (1 regel onder bestaande sectie)
+### 5. Info.plist permissies
+- `NSCameraUsageDescription` — "Gebruikt voor LiDAR-scan van de ruimte"
+- iOS 16+ deployment target controleren
 
-## Wat NIET in deze stap
+### 6. Build-flow
+Na de plugin-toevoeging één keer `npm run ios:setup` opnieuw zodat Xcode de Swift-plugin oppikt; daarna gewoon `npm run ios:run`.
 
-- Geen UI-wijziging aan `/roadmap` — de bestaande module-rendering pakt de nieuwe modules automatisch op (groepering is dynamisch op `module_order`).
-- Geen schemawijziging aan `roadmap_task`.
-- Geen Azure-resources aanmaken; alleen documentatie en taken.
-- Geen verandering aan bestaande taken in modules 0–8.
+## Vereisten / beperkingen
 
-## Technische details
+- **Werkt alleen op iPad Pro met LiDAR + iOS 16+** (jouw iPad voldoet — iOS 26.5 in screenshot).
+- **Werkt NIET in browser-preview / Lovable preview** — alleen na `npm run ios:run` op de echte iPad. In de browser tonen we daarom een uitgegrijsde knop met uitleg.
+- Eerste keer vraagt de iPad om camera-toestemming.
 
-- Migratie gebruikt `UPDATE roadmap_task SET module=..., module_label=..., module_order=... WHERE module='go_live' AND title ILIKE '%...%'` per categorie, plus `INSERT` voor nieuwe taken die nog niet bestaan.
-- `is_golive_blocker=true` blijft; `is_project_blocker=false` (alleen Module 0/LiDAR is project-blocker).
-- Module_order: 90 (infra), 91 (identity), 92 (compliance), 93 (cutover) — zit ná module 8 (audit, order 80) en houdt de visuele volgorde.
+## Wat ik NIET in dit plan stop (vraag indien gewenst apart)
 
----
+- 3D-viewer in de webapp om de USDZ te bekijken (kan later).
+- Automatisch isolatieoppervlak per muur berekenen vanuit de JSON (eerst ruwe data, daarna pas regels).
+- Editor om muren/ramen handmatig bij te werken na scan.
 
-## Vervolg: ISO27001-migratie
+## Wat ik van jou nodig heb voor ik begin
 
-Module 9 (`go_live`) is gesplitst in **9a Infrastructuur**, **9b Identiteit**, **9c Compliance & ISMS** en **9d Cutover**. Volledige toelichting (datamapping, verantwoordelijkheden, cutover-draaiboek) staat in [`.lovable/ISO27001_MIGRATIE.md`](./ISO27001_MIGRATIE.md).
+Eén bevestiging — verder kan ik door:
+
+1. Akkoord met de tabel `in_lidar_scan` zoals hierboven?
+2. De scan-knop in **het opname-detailscherm** (`/intake/:id`) plaatsen, of liever al in de nieuwe-opname-wizard (`/intake/new`)?

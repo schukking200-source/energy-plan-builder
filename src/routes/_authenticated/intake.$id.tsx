@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useMyRoles } from "@/lib/roles";
 import { logAudit } from "@/lib/audit";
 import { ArrowLeft, Download, Loader2 } from "lucide-react";
+import { LidarScanButton } from "@/components/LidarScanButton";
 
 export const Route = createFileRoute("/_authenticated/intake/$id")({
   head: () => ({ meta: [{ title: "Opname-detail — Isolatieplan Tool" }] }),
@@ -41,6 +42,22 @@ type Row = {
   created_at: string;
 };
 
+type LidarScanRow = {
+  id: string;
+  room_label: string | null;
+  storage_path_usdz: string;
+  storage_path_json: string;
+  size_bytes: number | null;
+  room_summary: {
+    wallCount?: number;
+    doorCount?: number;
+    windowCount?: number;
+    floorAreaM2?: number;
+    ceilingHeightM?: number;
+  };
+  captured_at: string;
+};
+
 function IntakeDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
@@ -50,6 +67,8 @@ function IntakeDetail() {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [acting, setActing] = useState<string | null>(null);
+  const [scans, setScans] = useState<LidarScanRow[]>([]);
+  const [scanReload, setScanReload] = useState(0);
 
   const isReviewer = !!roles?.some((r) =>
     ["kwaliteitscommissie", "steekproef", "admin"].includes(r),
@@ -79,6 +98,41 @@ function IntakeDetail() {
       setLoading(false);
     })();
   }, [id]);
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await (
+        supabase.from("in_lidar_scan") as unknown as {
+          select: (cols: string) => {
+            eq: (k: string, v: string) => {
+              order: (
+                c: string,
+                o: { ascending: boolean },
+              ) => Promise<{ data: LidarScanRow[] | null; error: { message: string } | null }>;
+            };
+          };
+        }
+      )
+        .select(
+          "id, room_label, storage_path_usdz, storage_path_json, size_bytes, room_summary, captured_at",
+        )
+        .eq("measurement_id", id)
+        .order("captured_at", { ascending: false });
+      if (error) toast.error(`Scans laden mislukt: ${error.message}`);
+      setScans(data ?? []);
+    })();
+  }, [id, scanReload]);
+
+  async function downloadScan(path: string) {
+    const { data, error } = await supabase.storage
+      .from("lidar-scans")
+      .createSignedUrl(path, 60 * 10);
+    if (error || !data?.signedUrl) {
+      toast.error(`Download-link maken mislukt: ${error?.message ?? "geen URL"}`);
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener");
+  }
 
   async function transition(next: "in_review" | "approved" | "rejected" | "submitted") {
     if (!row) return;
@@ -179,23 +233,76 @@ function IntakeDetail() {
 
           <Card>
             <CardHeader>
-              <CardTitle>LiDAR / 3D-scan</CardTitle>
+              <CardTitle>LiDAR / 3D-scans</CardTitle>
+              <CardDescription>
+                Apple RoomPlan-scans van de ruimtes binnen deze opname. Alleen toe te voegen zolang de opname op
+                status “draft” staat.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-2 text-sm">
-              <Field label="Scan-app" value={row.scan_app ?? "geen"} />
-              <Field label="Formaat" value={row.scan_format ?? "—"} />
-              <Field
-                label="Grootte"
-                value={row.scan_size_bytes ? `${(row.scan_size_bytes / 1024 / 1024).toFixed(2)} MB` : "—"}
-              />
-              {signedUrl ? (
-                <Button asChild variant="outline" size="sm" className="mt-2 w-fit">
-                  <a href={signedUrl} target="_blank" rel="noreferrer">
-                    <Download className="mr-1 h-4 w-4" /> Download scan (10 min geldig)
-                  </a>
-                </Button>
+            <CardContent className="grid gap-3 text-sm">
+              {row.status === "draft" ? (
+                <LidarScanButton
+                  measurementId={row.id}
+                  onUploaded={() => setScanReload((n) => n + 1)}
+                />
               ) : (
-                <p className="text-xs text-muted-foreground">Geen scan-bestand bij deze opname.</p>
+                <p className="text-xs text-muted-foreground">
+                  Opname is ingediend — nieuwe scans toevoegen kan niet meer.
+                </p>
+              )}
+
+              {scans.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Nog geen scans bij deze opname.</p>
+              ) : (
+                <ul className="grid gap-2">
+                  {scans.map((s) => (
+                    <li key={s.id} className="rounded-md border p-2">
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <span className="font-medium">{s.room_label ?? "ruimte"}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(s.captured_at).toLocaleString("nl-NL")}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {s.room_summary.wallCount ?? 0} muren ·{" "}
+                        {s.room_summary.windowCount ?? 0} ramen ·{" "}
+                        {s.room_summary.doorCount ?? 0} deuren ·{" "}
+                        {(s.room_summary.floorAreaM2 ?? 0).toFixed(1)} m² vloer ·{" "}
+                        plafond {(s.room_summary.ceilingHeightM ?? 0).toFixed(2)} m ·{" "}
+                        {s.size_bytes ? `${(s.size_bytes / 1024 / 1024).toFixed(2)} MB` : "—"}
+                      </div>
+                      <div className="mt-2 flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadScan(s.storage_path_usdz)}
+                        >
+                          <Download className="mr-1 h-4 w-4" /> USDZ
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadScan(s.storage_path_json)}
+                        >
+                          <Download className="mr-1 h-4 w-4" /> JSON
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {signedUrl && (
+                <div className="mt-2 border-t pt-2">
+                  <p className="mb-1 text-xs text-muted-foreground">
+                    Legacy scan-bestand (uit eerder ingevoerd veld):
+                  </p>
+                  <Button asChild variant="outline" size="sm" className="w-fit">
+                    <a href={signedUrl} target="_blank" rel="noreferrer">
+                      <Download className="mr-1 h-4 w-4" /> Download legacy scan
+                    </a>
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>

@@ -1,0 +1,30 @@
+{
+  "name": "room-plan-scanner",
+  "version": "0.1.0",
+  "description": "Capacitor plugin: Apple RoomPlan LiDAR-scan voor iPad Pro.",
+  "main": "dist/plugin.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "files": [
+    "ios/Sources",
+    "Package.swift",
+    "RoomPlanScanner.podspec",
+    "dist/",
+    "src/"
+  ],
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/plugin.js"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": "^8.0.0"
+  }
+}
