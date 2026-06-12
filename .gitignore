@@ -38,3 +38,6 @@ dist-ssr
 /ios/App/build/
 /ios/DerivedData/
 /DerivedData/
+
+# Lokaal opgeslagen Apple Development Team ID (niet committen)
+.ios-dev-team
