@@ -42,7 +42,9 @@ function readStored(): "on" | "off" | null {
 function writeStored(v: "on" | "off") {
   try {
     localStorage.setItem(STORAGE_KEY, v);
-  } catch {}
+  } catch {
+    // localStorage can be unavailable in restricted WebView contexts.
+  }
 }
 
 function defaultVisible(): boolean {
@@ -52,7 +54,9 @@ function defaultVisible(): boolean {
   try {
     const url = new URL(window.location.href);
     if (url.searchParams.get("debug") === "1") return true;
-  } catch {}
+  } catch {
+    // Ignore malformed or unavailable URLs and fall back to native detection.
+  }
   return isNative();
 }
 
@@ -249,7 +253,9 @@ export function installDebugOverlay() {
     console[m] = (...args: unknown[]) => {
       try {
         push(m, args);
-      } catch {}
+      } catch {
+        // Keep console logging working even if overlay rendering fails.
+      }
       orig(...args);
     };
   }
