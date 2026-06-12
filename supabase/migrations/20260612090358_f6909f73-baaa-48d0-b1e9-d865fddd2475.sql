@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.admin_rls_selftest(uuid, uuid, uuid) FROM anon, authenticated, PUBLIC;
