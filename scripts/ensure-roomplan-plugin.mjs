@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, realpathSync, rmSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 const root = process.cwd();
@@ -18,15 +18,20 @@ for (const file of requiredFiles) {
   }
 }
 
-mkdirSync(installedRoot, { recursive: true });
+const installedIsSource =
+  existsSync(installedRoot) && realpathSync(installedRoot) === realpathSync(sourceRoot);
 
-for (const entry of ["ios", "Package.swift", "RoomPlanScanner.podspec", "package.json", "src"]) {
-  const from = resolve(sourceRoot, entry);
-  const to = resolve(installedRoot, entry);
-  if (!existsSync(from)) continue;
-  rmSync(to, { recursive: true, force: true });
-  mkdirSync(dirname(to), { recursive: true });
-  cpSync(from, to, { recursive: true });
+if (!installedIsSource) {
+  mkdirSync(installedRoot, { recursive: true });
+
+  for (const entry of ["ios", "Package.swift", "RoomPlanScanner.podspec", "package.json", "src"]) {
+    const from = resolve(sourceRoot, entry);
+    const to = resolve(installedRoot, entry);
+    if (!existsSync(from)) continue;
+    rmSync(to, { recursive: true, force: true });
+    mkdirSync(dirname(to), { recursive: true });
+    cpSync(from, to, { recursive: true });
+  }
 }
 
 for (const file of requiredFiles) {
