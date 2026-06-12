@@ -44,10 +44,39 @@ Dit verwijdert de gegenereerde `ios/`-map en bouwt hem opnieuw op vanuit Capacit
 Als Xcode/Keychain het Team ID niet automatisch leveren:
 
 ```bash
-IOS_DEVELOPMENT_TEAM=ABCDE12345 npm run ios:run
+IOS_DEVELOPMENT_TEAM=<jouw-10-tekens-Team-ID> npm run ios:run
 ```
 
 Het script cachet dit lokaal in `.ios-dev-team` voor volgende runs.
+
+Je Team ID vind je in Xcode via **Settings → Accounts → jouw Apple ID → Team → Team ID**.
+
+## Signing/provisioning herstellen
+
+Zie je een fout zoals:
+
+```text
+No Account for Team "7FB5CA068F"
+No profiles for 'nl.isolatieplan.tool' were found
+```
+
+Dan stond er nog een oude project-Team ID in je lokale iOS-project/cache. Herstel zo:
+
+```bash
+rm -f .ios-dev-team
+IOS_DEVELOPMENT_TEAM=<jouw-10-tekens-Team-ID> npm run ios:clean
+```
+
+Als Apple ook klaagt over het bundle-id/provisioning profile, gebruik dan een eigen uniek bundle-id:
+
+```bash
+rm -f .ios-dev-team
+IOS_DEVELOPMENT_TEAM=<jouw-10-tekens-Team-ID> \
+IOS_BUNDLE_ID=nl.jouwbedrijf.energyplanbuilder \
+npm run ios:clean
+```
+
+Gebruik voor `IOS_BUNDLE_ID` iets unieks dat bij jouw Apple Developer-account hoort.
 
 ## Belangrijk: niet meer handmatig Swift-bestanden toevoegen
 
@@ -99,7 +128,8 @@ Geen App Store-review nodig voor interne testers (max 100). Externe testers (tot
 | Scan-knop blijft "Alleen in iOS-app"    | Start met `npm run ios:run`, niet via Safari/Chrome/preview                                                                                     |
 | Witte pagina in app                     | Controleer dat `capacitor.config.ts` `webDir: "dist/client"` heeft, draai `npm run ios:run` opnieuw en lees de debug-overlay / Xcode `WV:` logs |
 | Build-error "RoomPlan module not found" | Draai `npm run ios:clean`; het script zet iOS target en Podfile opnieuw op 16.0                                                                 |
-| Signing blijft fout                     | Draai `IOS_DEVELOPMENT_TEAM=ABCDE12345 npm run ios:clean`                                                                                       |
+| Signing blijft fout                     | Draai `rm -f .ios-dev-team && IOS_DEVELOPMENT_TEAM=<jouw-Team-ID> npm run ios:clean`                                                            |
+| Geen provisioning profile voor bundle   | Voeg `IOS_BUNDLE_ID=nl.jouwbedrijf.energyplanbuilder` toe aan het `npm run ios:clean` commando                                                  |
 
 ---
 

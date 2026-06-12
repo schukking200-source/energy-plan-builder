@@ -21,7 +21,8 @@ Gebruik:
   npm run ios:clean               iOS-map + DerivedData schoon opnieuw genereren
 
 Handige variabelen:
-  IOS_DEVELOPMENT_TEAM=7FB5CA068F npm run ios:run
+  IOS_DEVELOPMENT_TEAM=<jouw-Apple-Team-ID> npm run ios:run
+  IOS_BUNDLE_ID=nl.jouwbedrijf.energyplanbuilder npm run ios:run
   IOS_TARGET=<iPhone-of-iPad-UDID> IOS_CONFIRM=0 npm run ios:run
 TXT
 }
@@ -143,8 +144,34 @@ normalize_team() {
   printf "%s" "$1" | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]'
 }
 
+is_legacy_default_team() {
+  [ "$(normalize_team "$1")" = "7FB5CA068F" ]
+}
+
 is_valid_team_id() {
   printf "%s" "$1" | grep -Eq '^[A-Z0-9]{10}$' && [ "$1" != "ABCDE12345" ]
+}
+
+is_valid_detected_team_id() {
+  is_valid_team_id "$1" && ! is_legacy_default_team "$1"
+}
+
+normalize_bundle_id() {
+  printf "%s" "$1" | tr -d '[:space:]'
+}
+
+is_valid_bundle_id() {
+  printf "%s" "$1" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9-]*(\.[A-Za-z0-9][A-Za-z0-9-]*)+$'
+}
+
+patch_bundle_id() {
+  local bundle_id="${1:-}"
+  [ -n "${bundle_id}" ] || return 0
+
+  local pbxproj="ios/App/App.xcodeproj/project.pbxproj"
+  [ -f "${pbxproj}" ] || return 0
+
+  /usr/bin/perl -0pi -e "s/PRODUCT_BUNDLE_IDENTIFIER = [A-Za-z0-9_.-]+;/PRODUCT_BUNDLE_IDENTIFIER = ${bundle_id};/g" "${pbxproj}"
 }
 
 detect_team_from_xcode_project() {
@@ -187,32 +214,69 @@ detect_team_from_profiles() {
 resolve_team_id() {
   local team_file=".ios-dev-team"
   local team=""
-  local default_team
-  default_team="$(normalize_team "${IOS_DEFAULT_DEVELOPMENT_TEAM:-7FB5CA068F}")"
+  local explicit_team=0
 
   if [ -n "${IOS_DEVELOPMENT_TEAM:-}" ]; then
     team="$(normalize_team "${IOS_DEVELOPMENT_TEAM}")"
+    explicit_team=1
     ok "Team ID geladen uit IOS_DEVELOPMENT_TEAM: ${team}"
   elif [ -n "${DEVELOPMENT_TEAM:-}" ]; then
     team="$(normalize_team "${DEVELOPMENT_TEAM}")"
+    explicit_team=1
     ok "Team ID geladen uit DEVELOPMENT_TEAM: ${team}"
   elif [ -n "${APPLE_TEAM_ID:-}" ]; then
     team="$(normalize_team "${APPLE_TEAM_ID}")"
+    explicit_team=1
     ok "Team ID geladen uit APPLE_TEAM_ID: ${team}"
-  elif is_valid_team_id "${default_team}"; then
-    team="${default_team}"
-    ok "Team ID ingesteld op projectstandaard: ${team}"
   elif [ -f "${team_file}" ]; then
-    team="$(normalize_team "$(cat "${team_file}" 2>/dev/null || true)")"
-    [ -n "${team}" ] && ok "Team ID geladen uit ${team_file}: ${team}"
-  elif team="$(normalize_team "$(detect_team_from_xcode_project)")" && is_valid_team_id "${team}"; then
-    ok "Team ID gevonden in Xcode-project: ${team}"
-  elif team="$(normalize_team "$(detect_team_from_xcode_build_settings)")" && is_valid_team_id "${team}"; then
-    ok "Team ID gevonden in Xcode build settings: ${team}"
-  elif team="$(normalize_team "$(detect_team_from_keychain)")" && is_valid_team_id "${team}"; then
-    ok "Team ID gevonden in Keychain: ${team}"
-  elif team="$(normalize_team "$(detect_team_from_profiles)")" && is_valid_team_id "${team}"; then
-    ok "Team ID gevonden in provisioning profile: ${team}"
+    local cached_team
+    cached_team="$(normalize_team "$(cat "${team_file}" 2>/dev/null || true)")"
+    if is_legacy_default_team "${cached_team}"; then
+      warn "Oude project-Team ID ${cached_team} gevonden in ${team_file}; ik verwijder die cache."
+      rm -f "${team_file}"
+    elif is_valid_team_id "${cached_team}"; then
+      team="${cached_team}"
+      ok "Team ID geladen uit ${team_file}: ${team}"
+    elif [ -n "${cached_team}" ]; then
+      warn "Ongeldige Team ID in ${team_file}; ik verwijder die cache."
+      rm -f "${team_file}"
+    fi
+  fi
+
+  if [ -z "${team}" ]; then
+    local detected_team
+    detected_team="$(normalize_team "$(detect_team_from_keychain)")"
+    if is_valid_detected_team_id "${detected_team}"; then
+      team="${detected_team}"
+      ok "Team ID gevonden in Keychain: ${team}"
+    fi
+  fi
+
+  if [ -z "${team}" ]; then
+    local detected_team
+    detected_team="$(normalize_team "$(detect_team_from_profiles)")"
+    if is_valid_detected_team_id "${detected_team}"; then
+      team="${detected_team}"
+      ok "Team ID gevonden in provisioning profile: ${team}"
+    fi
+  fi
+
+  if [ -z "${team}" ]; then
+    local detected_team
+    detected_team="$(normalize_team "$(detect_team_from_xcode_build_settings)")"
+    if is_valid_detected_team_id "${detected_team}"; then
+      team="${detected_team}"
+      ok "Team ID gevonden in Xcode build settings: ${team}"
+    fi
+  fi
+
+  if [ -z "${team}" ]; then
+    local detected_team
+    detected_team="$(normalize_team "$(detect_team_from_xcode_project)")"
+    if is_valid_detected_team_id "${detected_team}"; then
+      team="${detected_team}"
+      ok "Team ID gevonden in Xcode-project: ${team}"
+    fi
   fi
 
   if ! is_valid_team_id "${team}"; then
@@ -220,8 +284,19 @@ resolve_team_id() {
     patch_pbxproj ""
     patch_package_swift_min_ios
     err "Geen Apple Development Team ID gevonden. Fysieke iOS-builds hebben die verplicht nodig."
-    err "Draai éénmalig: IOS_DEVELOPMENT_TEAM=7FB5CA068F npm run ios:run"
-    err "Of zet je eigen Team ID in plaats van 7FB5CA068F als Xcode een andere toont."
+    err "Open Xcode → Settings → Accounts en log in met je Apple Developer-account."
+    err "Zoek daarna je Team ID en draai éénmalig:"
+    err "  IOS_DEVELOPMENT_TEAM=<jouw-10-tekens-Team-ID> npm run ios:clean"
+    exit 1
+  fi
+
+  if [ "${explicit_team}" != "1" ] && is_legacy_default_team "${team}"; then
+    rm -f "${team_file}"
+    patch_pbxproj ""
+    patch_package_swift_min_ios
+    err "Team ID ${team} is de oude projectstandaard en hoort niet bij jouw Xcode-account."
+    err "Draai opnieuw met je eigen Team ID:"
+    err "  IOS_DEVELOPMENT_TEAM=<jouw-10-tekens-Team-ID> npm run ios:clean"
     exit 1
   fi
 
@@ -233,6 +308,26 @@ resolve_team_id() {
   IOS_DEVELOPMENT_TEAM="${team}"
   export IOS_DEVELOPMENT_TEAM
   patch_pbxproj "${IOS_DEVELOPMENT_TEAM}"
+}
+
+resolve_bundle_id() {
+  local bundle_id
+  bundle_id="$(normalize_bundle_id "${IOS_BUNDLE_ID:-}")"
+
+  if [ -z "${bundle_id}" ]; then
+    return 0
+  fi
+
+  if ! is_valid_bundle_id "${bundle_id}"; then
+    err "Ongeldige IOS_BUNDLE_ID: ${bundle_id}"
+    err "Gebruik bijvoorbeeld: IOS_BUNDLE_ID=nl.jouwbedrijf.energyplanbuilder npm run ios:clean"
+    exit 1
+  fi
+
+  IOS_BUNDLE_ID="${bundle_id}"
+  export IOS_BUNDLE_ID
+  patch_bundle_id "${IOS_BUNDLE_ID}"
+  ok "Bundle ID ingesteld op ${IOS_BUNDLE_ID}."
 }
 
 
@@ -350,6 +445,7 @@ fi
 
 ensure_ios_platform
 resolve_team_id
+resolve_bundle_id
 select_ios_device
 
 IOS_PROJECT_DIR="ios/App"
@@ -379,6 +475,10 @@ XCODE_TEAM_ARGS=()
 if [ -n "${IOS_DEVELOPMENT_TEAM:-}" ]; then
   XCODE_TEAM_ARGS=(DEVELOPMENT_TEAM="${IOS_DEVELOPMENT_TEAM}")
 fi
+XCODE_BUNDLE_ARGS=()
+if [ -n "${IOS_BUNDLE_ID:-}" ]; then
+  XCODE_BUNDLE_ARGS=(PRODUCT_BUNDLE_IDENTIFIER="${IOS_BUNDLE_ID}")
+fi
 ( cd "${IOS_PROJECT_DIR}" && xcrun xcodebuild \
   "${XCODE_CONTAINER_ARGS[@]}" \
   -scheme "${SCHEME}" \
@@ -387,6 +487,7 @@ fi
   -derivedDataPath "DerivedData/${TARGET}" \
   ${PROVISIONING_ARGS[@]+"${PROVISIONING_ARGS[@]}"} \
   ${XCODE_TEAM_ARGS[@]+"${XCODE_TEAM_ARGS[@]}"} \
+  ${XCODE_BUNDLE_ARGS[@]+"${XCODE_BUNDLE_ARGS[@]}"} \
   CODE_SIGN_STYLE=Automatic \
   build )
 
