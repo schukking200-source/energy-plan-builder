@@ -64,8 +64,9 @@ Tab **Signing & Capabilities**:
 ## Stap 6 — iPad aansluiten + installeren (5 min)
 
 Gebruik voortaan dit commando. Dit bouwt lokaal, synchroniseert Capacitor en
-start de **native iPad-app** direct op de aangesloten iPad — geen Chrome,
-Safari of Lovable preview-URL.
+start de **native iPad-app** direct op de aangesloten iPad via Apple's
+`xcodebuild` + `devicectl` — dus **niet** via `cap run`, geen Chrome, geen
+Safari en geen Lovable preview-URL.
 
 ```bash
 npm run ios:run
@@ -84,7 +85,8 @@ Voorwaarden:
 3. Eerste keer: op iPad → **Instellingen → Algemeen → VPN & Apparaatbeheer → Jouw Apple ID → Vertrouwen**.
 
 Als de iPad niet gevonden wordt of signing nog niet klopt, stopt het script met
-een foutmelding. Het opent bewust geen Xcode, Chrome, Safari of preview-URL.
+een foutmelding. Het opent bewust geen Xcode, Chrome, Safari of preview-URL en
+gebruikt ook geen `npx cap run ios` / `native-run` meer.
 
 App opent automatisch op iPad en laadt de lokale build uit `dist/`.
 
@@ -118,14 +120,14 @@ Geen App Store-review nodig voor interne testers (max 100). Externe testers (tot
 
 - ❌ Geen ander hosting opzetten — de iPad-app bundelt de web-build lokaal.
 - ❌ Geen preview-URL nodig in de iPad-app; die kan in WKWebView wit blijven door remote JavaScript-errors.
-- ❌ Bij frontend-wijzigingen: wél opnieuw `bun run build` + `bunx cap sync ios` + Xcode Run doen.
+- ❌ Bij frontend-wijzigingen: geen Xcode Run nodig; draai opnieuw `npm run ios:run`.
 
 ## Bekende valkuilen
 
 | Probleem | Oplossing |
 |---|---|
 | "Untrusted Developer" op iPad | Settings → VPN & Device Management → Trust |
-| Scan-knop blijft "Alleen in iPad-app" | Start met `npm run ios:run`, niet via Safari/Chrome |
+| Scan-knop blijft "Alleen in iPad-app" | Start met `npm run ios:run`, niet via Safari/Chrome/preview |
 | Witte pagina in app | Sluit Safari/Chrome af, start opnieuw met `npm run ios:run` en lees de debug-overlay / Xcode `WV:` logs |
 | Build-error "RoomPlan module not found" | Deployment target onder iOS 16 — zet op **iOS 16.0** in target settings |
 
