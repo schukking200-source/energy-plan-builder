@@ -83,24 +83,27 @@ if ! command -v xcrun >/dev/null 2>&1 || ! xcrun devicectl --help >/dev/null 2>&
   exit 1
 fi
 
-# 5. Repo clonen of updaten
-if [ -d "${REPO_DIR}/.git" ]; then
-  log "Repo bestaat al — laatste wijzigingen ophalen..."
-  git -C "${REPO_DIR}" pull --ff-only || true
+# 5. Repo clonen of updaten — overslaan als we al in een project met package.json + .git zitten
+if [ -f "package.json" ] && [ -d ".git" ]; then
+  ok "Bestaand project gedetecteerd in $(pwd) — clone overgeslagen."
 else
-  log "Repo klonen..."
-  if [ -n "${TOKEN}" ]; then
-    git clone "https://${TOKEN}@github.com/${REPO_USER}/${REPO_NAME}.git" "${REPO_DIR}"
+  if [ -d "${REPO_DIR}/.git" ]; then
+    log "Repo bestaat al — laatste wijzigingen ophalen..."
+    git -C "${REPO_DIR}" pull --ff-only || true
   else
-    git clone "https://github.com/${REPO_USER}/${REPO_NAME}.git" "${REPO_DIR}" || {
-      err "Clone mislukt. Repo is mogelijk privé."
-      err "Voer opnieuw uit met token: GITHUB_TOKEN=ghp_xxx bash $0"
-      exit 1
-    }
+    log "Repo klonen..."
+    if [ -n "${TOKEN}" ]; then
+      git clone "https://${TOKEN}@github.com/${REPO_USER}/${REPO_NAME}.git" "${REPO_DIR}"
+    else
+      git clone "https://github.com/${REPO_USER}/${REPO_NAME}.git" "${REPO_DIR}" || {
+        err "Clone mislukt. Repo is mogelijk privé."
+        err "Voer opnieuw uit met token: GITHUB_TOKEN=ghp_xxx bash $0"
+        exit 1
+      }
+    fi
   fi
+  cd "${REPO_DIR}"
 fi
-
-cd "${REPO_DIR}"
 
 # 6. Dependencies + build
 log "npm install..."
