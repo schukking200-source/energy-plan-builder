@@ -105,56 +105,9 @@ else
   cd "${REPO_DIR}"
 fi
 
-# 6. Dependencies + build
+# 6. Dependencies installeren; daarna altijd dezelfde schone native runner gebruiken.
 log "npm install..."
 npm install
 
-log "RoomPlanScannerPlugin iOS-bronnen controleren..."
-node scripts/ensure-roomplan-plugin.mjs
-
-log "npm run build..."
-BROWSER=none npm_config_browser=none CI=1 npm run build
-
-log "Capacitor index.html maken..."
-node scripts/create-capacitor-index.mjs
-
-# 7. Capacitor iOS
-log "Capacitor CLI controleren..."
-if ! npx --no-install cap --version >/dev/null 2>&1; then
-  npm install --save-dev @capacitor/cli
-fi
-
-if [ ! -f "capacitor.config.ts" ] && [ ! -f "capacitor.config.json" ]; then
-  log "Capacitor initialiseren..."
-  APP_NAME="$(node -p "require('./package.json').name")"
-  APP_ID="app.lovable.$(echo "${APP_NAME}" | tr -cd '[:alnum:]')"
-  cap init "${APP_NAME}" "${APP_ID}" --web-dir=dist/client
-fi
-
-if [ ! -d "ios" ]; then
-  log "iOS platform toevoegen..."
-  npm install @capacitor/ios
-  cap add ios
-fi
-
-log "Capacitor sync (ios)..."
-cap sync ios
-
-# Camera-permissie voor RoomPlan in Info.plist zetten (idempotent)
-PLIST="ios/App/App/Info.plist"
-if [ -f "${PLIST}" ]; then
-  log "Info.plist updaten voor LiDAR/RoomPlan..."
-  /usr/libexec/PlistBuddy -c "Set :NSCameraUsageDescription 'Wordt gebruikt om met de LiDAR-scanner ruimtes in 3D op te nemen voor het isolatieplan.'" "${PLIST}" \
-    2>/dev/null \
-    || /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Wordt gebruikt om met de LiDAR-scanner ruimtes in 3D op te nemen voor het isolatieplan.'" "${PLIST}"
-fi
-
-# iOS deployment target ophogen naar 16 (RoomPlan vereist iOS 16+)
-PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"
-if [ -f "${PBXPROJ}" ]; then
-  log "iOS deployment target verhogen naar 16.0..."
-  /usr/bin/sed -i '' -E 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9]+(\.[0-9]+)?;/IPHONEOS_DEPLOYMENT_TARGET = 16.0;/g' "${PBXPROJ}" || true
-fi
-
-log "Setup klaar. Native iPad-app starten met browser-vrije runner..."
-IOS_SKIP_BUILD=1 IOS_SKIP_SYNC=1 bash scripts/run-ios-native.sh
+log "Setup klaar. Native iPad-app schoon genereren en starten..."
+bash scripts/run-ios-native.sh --clean

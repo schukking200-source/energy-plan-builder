@@ -40,6 +40,10 @@ public class RoomPlanScannerPlugin: CAPPlugin, CAPBridgedPlugin {
 
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
+            guard let presenter = self.bridge?.viewController else {
+                call.reject("Kan RoomPlan niet openen: native iOS-viewcontroller ontbreekt")
+                return
+            }
             guard self.scanController == nil else {
                 call.reject("Er loopt al een RoomPlan-scan")
                 return
@@ -50,7 +54,7 @@ public class RoomPlanScannerPlugin: CAPPlugin, CAPBridgedPlugin {
             }
             self.scanController = controller
             controller.modalPresentationStyle = .fullScreen
-            self.bridge?.viewController?.present(controller, animated: true)
+            presenter.present(controller, animated: true)
         }
     }
 }
