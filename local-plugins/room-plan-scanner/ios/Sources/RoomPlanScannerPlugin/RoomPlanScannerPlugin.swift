@@ -15,15 +15,28 @@ public class RoomPlanScannerPlugin: CAPPlugin, CAPBridgedPlugin {
     private var scanController: RoomPlanScannerViewController?
 
     @objc public func isSupported(_ call: CAPPluginCall) {
+        let device = UIDevice.current
+        let deviceInfo: [String: Any] = [
+            "platform": "ios",
+            "device": device.model,
+            "osVersion": device.systemVersion
+        ]
+
         guard #available(iOS 16.0, *) else {
-            call.resolve(["supported": false, "reason": "RoomPlan vereist iOS 16 of hoger"])
+            call.resolve(deviceInfo.merging([
+                "supported": false,
+                "reason": "RoomPlan vereist iOS 16 of hoger"
+            ]) { _, new in new })
             return
         }
 
         if RoomCaptureSession.isSupported {
-            call.resolve(["supported": true])
+            call.resolve(deviceInfo.merging(["supported": true]) { _, new in new })
         } else {
-            call.resolve(["supported": false, "reason": "Dit apparaat ondersteunt RoomPlan/LiDAR niet"])
+            call.resolve(deviceInfo.merging([
+                "supported": false,
+                "reason": "Dit apparaat ondersteunt Apple RoomPlan/LiDAR niet. Gebruik een iPhone Pro of iPad Pro met LiDAR."
+            ]) { _, new in new })
         }
     }
 
@@ -34,7 +47,7 @@ public class RoomPlanScannerPlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         guard RoomCaptureSession.isSupported else {
-            call.reject("Dit apparaat ondersteunt RoomPlan/LiDAR niet")
+            call.reject("Dit apparaat ondersteunt Apple RoomPlan/LiDAR niet. Gebruik een iPhone Pro of iPad Pro met LiDAR.")
             return
         }
 

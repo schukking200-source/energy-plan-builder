@@ -1,6 +1,6 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
-// Capacitor config for the native iPad wrapper.
+// Capacitor config for the native iOS wrapper.
 // TanStack Start writes the browser bundle to `dist/client`; pointing Capacitor
 // at plain `dist` copies the server bundle instead and can leave WKWebView white.
 const config: CapacitorConfig = {

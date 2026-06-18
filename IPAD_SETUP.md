@@ -1,14 +1,14 @@
-# iPad LiDAR-app — stabiel runpad
+# iOS LiDAR-app — stabiel runpad
 
-Doel: één commando dat de web-build maakt, de iOS-map schoon genereert/synchroniseert, Apple Team ID detecteert, bouwt met Xcode en de native RoomPlan-app direct op de iPad start.
+Doel: één commando dat de web-build maakt, de iOS-map schoon genereert/synchroniseert, Apple Team ID detecteert, bouwt met Xcode en de native RoomPlan-app direct op een iPhone Pro of iPad Pro start.
 
 ## Vereisten
 
 - Mac met **Xcode 15+**
 - Apple Developer-account, ingelogd in Xcode
-- **iPad Pro met LiDAR** en **iPadOS 16+**
-- USB-C kabel; iPad vertrouwt de Mac
-- Developer Mode aan op de iPad
+- **iPhone Pro of iPad Pro met LiDAR** en **iOS/iPadOS 16+**
+- USB-C/Lightning kabel; iPhone/iPad vertrouwt de Mac
+- Developer Mode aan op de iPhone/iPad
 
 ## Normale run
 
@@ -25,7 +25,7 @@ Het script doet zelf:
 4. `NSCameraUsageDescription` zetten
 5. iOS deployment target naar `16.0` zetten
 6. Apple Team ID ophalen uit env, Xcode-project, Xcode build settings, `.ios-dev-team`, Keychain of provisioning profiles
-7. fysieke iPad kiezen
+7. fysieke iPhone/iPad kiezen
 8. bouwen met `xcodebuild`
 9. installeren en starten met `devicectl`
 
@@ -44,10 +44,39 @@ Dit verwijdert de gegenereerde `ios/`-map en bouwt hem opnieuw op vanuit Capacit
 Als Xcode/Keychain het Team ID niet automatisch leveren:
 
 ```bash
-IOS_DEVELOPMENT_TEAM=ABCDE12345 npm run ios:run
+IOS_DEVELOPMENT_TEAM=<jouw-10-tekens-Team-ID> npm run ios:run
 ```
 
 Het script cachet dit lokaal in `.ios-dev-team` voor volgende runs.
+
+Je Team ID vind je in Xcode via **Settings → Accounts → jouw Apple ID → Team → Team ID**.
+
+## Signing/provisioning herstellen
+
+Zie je een fout zoals:
+
+```text
+No Account for Team "7FB5CA068F"
+No profiles for 'nl.isolatieplan.tool' were found
+```
+
+Dan stond er nog een oude project-Team ID in je lokale iOS-project/cache. Herstel zo:
+
+```bash
+rm -f .ios-dev-team
+IOS_DEVELOPMENT_TEAM=<jouw-10-tekens-Team-ID> npm run ios:clean
+```
+
+Als Apple ook klaagt over het bundle-id/provisioning profile, gebruik dan een eigen uniek bundle-id:
+
+```bash
+rm -f .ios-dev-team
+IOS_DEVELOPMENT_TEAM=<jouw-10-tekens-Team-ID> \
+IOS_BUNDLE_ID=nl.jouwbedrijf.energyplanbuilder \
+npm run ios:clean
+```
+
+Gebruik voor `IOS_BUNDLE_ID` iets unieks dat bij jouw Apple Developer-account hoort.
 
 ## Belangrijk: niet meer handmatig Swift-bestanden toevoegen
 
@@ -73,7 +102,7 @@ Dus: **niet** handmatig bestanden naar Xcode slepen en **niet** `npx cap run ios
 
 ## Distributie naar adviseurs (TestFlight)
 
-Zodra het werkt op jouw iPad:
+Zodra het werkt op jouw iPhone/iPad:
 
 1. In Xcode: **Product → Archive** (10 min build-tijd).
 2. Window → Organizer → **Distribute App → TestFlight & App Store**.
@@ -87,19 +116,20 @@ Geen App Store-review nodig voor interne testers (max 100). Externe testers (tot
 
 ## Wat je NIET hoeft te doen
 
-- ❌ Geen ander hosting opzetten — de iPad-app bundelt de web-build lokaal.
-- ❌ Geen preview-URL nodig in de iPad-app; die kan in WKWebView wit blijven door remote JavaScript-errors.
+- ❌ Geen ander hosting opzetten — de iOS-app bundelt de web-build lokaal.
+- ❌ Geen preview-URL nodig in de iOS-app; die kan in WKWebView wit blijven door remote JavaScript-errors.
 - ❌ Bij frontend-wijzigingen: geen Xcode Run nodig; draai opnieuw `npm run ios:run`.
 
 ## Bekende valkuilen
 
-| Probleem | Oplossing |
-|---|---|
-| "Untrusted Developer" op iPad | Settings → VPN & Device Management → Trust |
-| Scan-knop blijft "Alleen in iPad-app" | Start met `npm run ios:run`, niet via Safari/Chrome/preview |
-| Witte pagina in app | Controleer dat `capacitor.config.ts` `webDir: "dist/client"` heeft, draai `npm run ios:run` opnieuw en lees de debug-overlay / Xcode `WV:` logs |
-| Build-error "RoomPlan module not found" | Draai `npm run ios:clean`; het script zet iOS target en Podfile opnieuw op 16.0 |
-| Signing blijft fout | Draai `IOS_DEVELOPMENT_TEAM=ABCDE12345 npm run ios:clean` |
+| Probleem                                | Oplossing                                                                                                                                       |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Untrusted Developer" op iPhone/iPad    | Settings → VPN & Device Management → Trust                                                                                                      |
+| Scan-knop blijft "Alleen in iOS-app"    | Start met `npm run ios:run`, niet via Safari/Chrome/preview                                                                                     |
+| Witte pagina in app                     | Controleer dat `capacitor.config.ts` `webDir: "dist/client"` heeft, draai `npm run ios:run` opnieuw en lees de debug-overlay / Xcode `WV:` logs |
+| Build-error "RoomPlan module not found" | Draai `npm run ios:clean`; het script zet iOS target en Podfile opnieuw op 16.0                                                                 |
+| Signing blijft fout                     | Draai `rm -f .ios-dev-team && IOS_DEVELOPMENT_TEAM=<jouw-Team-ID> npm run ios:clean`                                                            |
+| Geen provisioning profile voor bundle   | Voeg `IOS_BUNDLE_ID=nl.jouwbedrijf.energyplanbuilder` toe aan het `npm run ios:clean` commando                                                  |
 
 ---
 

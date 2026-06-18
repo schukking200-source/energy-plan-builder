@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # All-in-one setup: installeert Homebrew/Node indien nodig, kloont de repo,
-# draait npm install + build en start de échte native iPad-app via devicectl.
+# draait npm install + build en start de échte native iOS-app via devicectl.
 # Dit opent bewust géén Chrome/Safari/webpreview en gebruikt geen `cap run`.
 #
 # Snelle start (kopieer/plak één regel in Terminal):
-#   cd ~/Documents && curl -fsSL https://raw.githubusercontent.com/schukking200-source/isolatie-opname-app/main/scripts/setup-ios.sh | bash
+#   cd ~/Documents && curl -fsSL https://raw.githubusercontent.com/schukking200-source/energy-plan-builder/main/scripts/setup-ios.sh | bash
 #
 # Met privé-repo token:
 #   GITHUB_TOKEN=ghp_xxx bash setup-ios.sh
@@ -17,7 +17,7 @@ export npm_config_browser=none
 export CI=1
 
 REPO_USER="schukking200-source"
-REPO_NAME="isolatie-opname-app"
+REPO_NAME="energy-plan-builder"
 REPO_DIR="${REPO_NAME}"
 TOKEN="${1:-${GITHUB_TOKEN:-}}"
 
@@ -109,5 +109,5 @@ fi
 log "npm install..."
 npm install
 
-log "Setup klaar. Native iPad-app schoon genereren en starten..."
+log "Setup klaar. Native iOS-app schoon genereren en starten..."
 bash scripts/run-ios-native.sh --clean

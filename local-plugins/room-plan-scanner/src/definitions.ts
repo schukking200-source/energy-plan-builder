@@ -23,6 +23,12 @@ export interface ScanResult {
 }
 
 export interface RoomPlanScannerPlugin {
-  isSupported(): Promise<{ supported: boolean; reason?: string }>;
+  isSupported(): Promise<{
+    supported: boolean;
+    reason?: string;
+    platform?: "ios" | "web";
+    device?: string;
+    osVersion?: string;
+  }>;
   startScan(): Promise<ScanResult>;
 }

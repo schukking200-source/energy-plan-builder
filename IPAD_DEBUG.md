@@ -1,10 +1,10 @@
-# iPad debug logging — stap-voor-stap
+# iOS debug logging — stap-voor-stap
 
 Twee niveaus van logging zijn nu actief:
 
 ## 1. JS-overlay op het scherm (geen Xcode nodig)
 
-Automatisch zichtbaar in de native iPad-app (én in de browser met `?debug=1`).
+Automatisch zichtbaar in de native iOS-app (én in de browser met `?debug=1`).
 Onderaan het scherm verschijnt een zwart paneel met groene tekst dat toont:
 
 - alle `console.log` / `warn` / `error` calls
@@ -15,7 +15,7 @@ Onderaan het scherm verschijnt een zwart paneel met groene tekst dat toont:
 Tap op de header om in te klappen. "Copy" kopieert alle logs naar het klembord
 zodat je ze in een mail/chat kunt plakken.
 
-→ **Doe dit eerst:** open de app op de iPad en lees wat er op het scherm staat.
+→ **Doe dit eerst:** open de app op de iPhone/iPad en lees wat er op het scherm staat.
 Dat verklaart meestal direct waarom het scherm wit blijft.
 
 ## 2. Xcode-console logging (volledige stacktraces)

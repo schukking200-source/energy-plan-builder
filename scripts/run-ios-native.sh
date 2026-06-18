@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Schone native iPad-runner voor RoomPlan/LiDAR.
+# Schone native iOS-runner voor RoomPlan/LiDAR.
 # Eén pad, geen `cap run ios`, geen live-reload, geen browser, geen preview.
 
 set -euo pipefail
@@ -21,8 +21,9 @@ Gebruik:
   npm run ios:clean               iOS-map + DerivedData schoon opnieuw genereren
 
 Handige variabelen:
-  IOS_DEVELOPMENT_TEAM=7FB5CA068F npm run ios:run
-  IOS_TARGET=<iPad-UDID> IOS_CONFIRM=0 npm run ios:run
+  IOS_DEVELOPMENT_TEAM=<jouw-Apple-Team-ID> npm run ios:run
+  IOS_BUNDLE_ID=nl.jouwbedrijf.energyplanbuilder npm run ios:run
+  IOS_TARGET=<iPhone-of-iPad-UDID> IOS_CONFIRM=0 npm run ios:run
 TXT
 }
 
@@ -87,7 +88,7 @@ patch_info_plist() {
 patch_pbxproj() {
   local team="${1:-}"
   # Patch ALLE pbxproj-bestanden onder ios/ naar iOS 16.0 (App, CapApp-SPM, plugins).
-  # Signing werkt op fysieke iPads alleen betrouwbaar als DEVELOPMENT_TEAM expliciet staat.
+  # Signing werkt op fysieke iOS-apparaten alleen betrouwbaar als DEVELOPMENT_TEAM expliciet staat.
   while IFS= read -r -d '' pbxproj; do
     /usr/bin/perl -0pi -e 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9]+(\.[0-9]+)?;/IPHONEOS_DEPLOYMENT_TARGET = 16.0;/g' "${pbxproj}"
     if [ -n "${team}" ]; then
@@ -143,8 +144,34 @@ normalize_team() {
   printf "%s" "$1" | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]'
 }
 
+is_legacy_default_team() {
+  [ "$(normalize_team "$1")" = "7FB5CA068F" ]
+}
+
 is_valid_team_id() {
   printf "%s" "$1" | grep -Eq '^[A-Z0-9]{10}$' && [ "$1" != "ABCDE12345" ]
+}
+
+is_valid_detected_team_id() {
+  is_valid_team_id "$1" && ! is_legacy_default_team "$1"
+}
+
+normalize_bundle_id() {
+  printf "%s" "$1" | tr -d '[:space:]'
+}
+
+is_valid_bundle_id() {
+  printf "%s" "$1" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9-]*(\.[A-Za-z0-9][A-Za-z0-9-]*)+$'
+}
+
+patch_bundle_id() {
+  local bundle_id="${1:-}"
+  [ -n "${bundle_id}" ] || return 0
+
+  local pbxproj="ios/App/App.xcodeproj/project.pbxproj"
+  [ -f "${pbxproj}" ] || return 0
+
+  /usr/bin/perl -0pi -e "s/PRODUCT_BUNDLE_IDENTIFIER = [A-Za-z0-9_.-]+;/PRODUCT_BUNDLE_IDENTIFIER = ${bundle_id};/g" "${pbxproj}"
 }
 
 detect_team_from_xcode_project() {
@@ -187,41 +214,89 @@ detect_team_from_profiles() {
 resolve_team_id() {
   local team_file=".ios-dev-team"
   local team=""
-  local default_team
-  default_team="$(normalize_team "${IOS_DEFAULT_DEVELOPMENT_TEAM:-7FB5CA068F}")"
+  local explicit_team=0
 
   if [ -n "${IOS_DEVELOPMENT_TEAM:-}" ]; then
     team="$(normalize_team "${IOS_DEVELOPMENT_TEAM}")"
+    explicit_team=1
     ok "Team ID geladen uit IOS_DEVELOPMENT_TEAM: ${team}"
   elif [ -n "${DEVELOPMENT_TEAM:-}" ]; then
     team="$(normalize_team "${DEVELOPMENT_TEAM}")"
+    explicit_team=1
     ok "Team ID geladen uit DEVELOPMENT_TEAM: ${team}"
   elif [ -n "${APPLE_TEAM_ID:-}" ]; then
     team="$(normalize_team "${APPLE_TEAM_ID}")"
+    explicit_team=1
     ok "Team ID geladen uit APPLE_TEAM_ID: ${team}"
-  elif is_valid_team_id "${default_team}"; then
-    team="${default_team}"
-    ok "Team ID ingesteld op projectstandaard: ${team}"
   elif [ -f "${team_file}" ]; then
-    team="$(normalize_team "$(cat "${team_file}" 2>/dev/null || true)")"
-    [ -n "${team}" ] && ok "Team ID geladen uit ${team_file}: ${team}"
-  elif team="$(normalize_team "$(detect_team_from_xcode_project)")" && is_valid_team_id "${team}"; then
-    ok "Team ID gevonden in Xcode-project: ${team}"
-  elif team="$(normalize_team "$(detect_team_from_xcode_build_settings)")" && is_valid_team_id "${team}"; then
-    ok "Team ID gevonden in Xcode build settings: ${team}"
-  elif team="$(normalize_team "$(detect_team_from_keychain)")" && is_valid_team_id "${team}"; then
-    ok "Team ID gevonden in Keychain: ${team}"
-  elif team="$(normalize_team "$(detect_team_from_profiles)")" && is_valid_team_id "${team}"; then
-    ok "Team ID gevonden in provisioning profile: ${team}"
+    local cached_team
+    cached_team="$(normalize_team "$(cat "${team_file}" 2>/dev/null || true)")"
+    if is_legacy_default_team "${cached_team}"; then
+      warn "Oude project-Team ID ${cached_team} gevonden in ${team_file}; ik verwijder die cache."
+      rm -f "${team_file}"
+    elif is_valid_team_id "${cached_team}"; then
+      team="${cached_team}"
+      ok "Team ID geladen uit ${team_file}: ${team}"
+    elif [ -n "${cached_team}" ]; then
+      warn "Ongeldige Team ID in ${team_file}; ik verwijder die cache."
+      rm -f "${team_file}"
+    fi
+  fi
+
+  if [ -z "${team}" ]; then
+    local detected_team
+    detected_team="$(normalize_team "$(detect_team_from_keychain)")"
+    if is_valid_detected_team_id "${detected_team}"; then
+      team="${detected_team}"
+      ok "Team ID gevonden in Keychain: ${team}"
+    fi
+  fi
+
+  if [ -z "${team}" ]; then
+    local detected_team
+    detected_team="$(normalize_team "$(detect_team_from_profiles)")"
+    if is_valid_detected_team_id "${detected_team}"; then
+      team="${detected_team}"
+      ok "Team ID gevonden in provisioning profile: ${team}"
+    fi
+  fi
+
+  if [ -z "${team}" ]; then
+    local detected_team
+    detected_team="$(normalize_team "$(detect_team_from_xcode_build_settings)")"
+    if is_valid_detected_team_id "${detected_team}"; then
+      team="${detected_team}"
+      ok "Team ID gevonden in Xcode build settings: ${team}"
+    fi
+  fi
+
+  if [ -z "${team}" ]; then
+    local detected_team
+    detected_team="$(normalize_team "$(detect_team_from_xcode_project)")"
+    if is_valid_detected_team_id "${detected_team}"; then
+      team="${detected_team}"
+      ok "Team ID gevonden in Xcode-project: ${team}"
+    fi
   fi
 
   if ! is_valid_team_id "${team}"; then
     rm -f "${team_file}"
     patch_pbxproj ""
     patch_package_swift_min_ios
-    err "Geen Apple Development Team ID gevonden. Fysieke iPad-builds hebben die verplicht nodig."
-    err "Draai éénmalig: IOS_DEVELOPMENT_TEAM=7FB5CA068F npm run ios:run"
-    err "Of zet je eigen Team ID in plaats van 7FB5CA068F als Xcode een andere toont."
+    err "Geen Apple Development Team ID gevonden. Fysieke iOS-builds hebben die verplicht nodig."
+    err "Open Xcode → Settings → Accounts en log in met je Apple Developer-account."
+    err "Zoek daarna je Team ID en draai éénmalig:"
+    err "  IOS_DEVELOPMENT_TEAM=<jouw-10-tekens-Team-ID> npm run ios:clean"
+    exit 1
+  fi
+
+  if [ "${explicit_team}" != "1" ] && is_legacy_default_team "${team}"; then
+    rm -f "${team_file}"
+    patch_pbxproj ""
+    patch_package_swift_min_ios
+    err "Team ID ${team} is de oude projectstandaard en hoort niet bij jouw Xcode-account."
+    err "Draai opnieuw met je eigen Team ID:"
+    err "  IOS_DEVELOPMENT_TEAM=<jouw-10-tekens-Team-ID> npm run ios:clean"
     exit 1
   fi
 
@@ -235,46 +310,66 @@ resolve_team_id() {
   patch_pbxproj "${IOS_DEVELOPMENT_TEAM}"
 }
 
+resolve_bundle_id() {
+  local bundle_id
+  bundle_id="$(normalize_bundle_id "${IOS_BUNDLE_ID:-}")"
 
-select_ipad() {
-  log "Verbonden fysieke iPads detecteren..."
-  local devices_raw ipads ipad_count selected target version major
+  if [ -z "${bundle_id}" ]; then
+    return 0
+  fi
+
+  if ! is_valid_bundle_id "${bundle_id}"; then
+    err "Ongeldige IOS_BUNDLE_ID: ${bundle_id}"
+    err "Gebruik bijvoorbeeld: IOS_BUNDLE_ID=nl.jouwbedrijf.energyplanbuilder npm run ios:clean"
+    exit 1
+  fi
+
+  IOS_BUNDLE_ID="${bundle_id}"
+  export IOS_BUNDLE_ID
+  patch_bundle_id "${IOS_BUNDLE_ID}"
+  ok "Bundle ID ingesteld op ${IOS_BUNDLE_ID}."
+}
+
+
+select_ios_device() {
+  log "Verbonden fysieke iPhone/iPad-apparaten detecteren..."
+  local devices_raw ios_devices ios_device_count selected target version major
   devices_raw="$(xcrun xctrace list devices 2>/dev/null \
     | awk '/== Simulators ==/{exit} /\([0-9A-Fa-f-]{20,}\)/ && $0 !~ /Mac/ && $0 !~ /Simulator/ {print}')"
-  ipads="$(printf "%s\n" "${devices_raw}" | grep -i "iPad" || true)"
+  ios_devices="$(printf "%s\n" "${devices_raw}" | grep -Ei "iPhone|iPad" || true)"
 
-  if [ -z "${ipads}" ]; then
-    err "Geen aangesloten fysieke iPad gevonden. Sluit de iPad via USB-C aan en kies 'Trust This Computer'."
+  if [ -z "${ios_devices}" ]; then
+    err "Geen aangesloten fysieke iPhone/iPad gevonden. Sluit het toestel via USB-C/Lightning aan en kies 'Trust This Computer'."
     err "Dit script opent geen Xcode, Chrome, Safari of preview."
     exit 1
   fi
 
-  ipad_count="$(printf "%s\n" "${ipads}" | wc -l | tr -d ' ')"
-  log "Gevonden iPad(s):"
-  printf "%s\n" "${ipads}" | nl -ba
+  ios_device_count="$(printf "%s\n" "${ios_devices}" | wc -l | tr -d ' ')"
+  log "Gevonden fysieke iOS-apparaten:"
+  printf "%s\n" "${ios_devices}" | nl -ba
 
   target="${IOS_TARGET:-}"
   if [ -n "${target}" ]; then
-    selected="$(printf "%s\n" "${ipads}" | grep -F "${target}" || true)"
+    selected="$(printf "%s\n" "${ios_devices}" | grep -F "${target}" || true)"
     if [ -z "${selected}" ]; then
-      err "IOS_TARGET=${target} is niet gevonden tussen de aangesloten fysieke iPads."
+      err "IOS_TARGET=${target} is niet gevonden tussen de aangesloten fysieke iOS-apparaten."
       exit 1
     fi
-  elif [ "${ipad_count}" -gt 1 ]; then
+  elif [ "${ios_device_count}" -gt 1 ]; then
     echo ""
-    read -r -p "Welke iPad gebruiken? Voer regelnummer in: " CHOICE
+    read -r -p "Welk iOS-apparaat gebruiken? Voer regelnummer in: " CHOICE
     if ! printf "%s" "${CHOICE}" | grep -Eq '^[0-9]+$'; then
       err "Ongeldige keuze: ${CHOICE}"
       exit 1
     fi
-    selected="$(printf "%s\n" "${ipads}" | sed -n "${CHOICE}p")"
+    selected="$(printf "%s\n" "${ios_devices}" | sed -n "${CHOICE}p")"
     if [ -z "${selected}" ]; then
-      err "Geen iPad op regel ${CHOICE}."
+      err "Geen iOS-apparaat op regel ${CHOICE}."
       exit 1
     fi
     target="$(printf "%s" "${selected}" | sed -E 's/.*\(([0-9A-Fa-f-]{20,})\).*/\1/')"
   else
-    selected="${ipads}"
+    selected="${ios_devices}"
     target="$(printf "%s" "${selected}" | sed -E 's/.*\(([0-9A-Fa-f-]{20,})\).*/\1/')"
   fi
 
@@ -282,26 +377,26 @@ select_ipad() {
   TARGET="${target}"
 
   if [ -z "${TARGET}" ] || [ "${TARGET}" = "${selected}" ]; then
-    err "Geen geldige iPad-UDID geselecteerd."
+    err "Geen geldige iOS-device-UDID geselecteerd."
     exit 1
   fi
 
   version="$(printf "%s" "${selected}" | sed -nE 's/.* \(([0-9]+(\.[0-9]+){0,2})\) \([0-9A-Fa-f-]{20,}\).*/\1/p')"
   major="${version%%.*}"
   if [ -n "${major}" ] && printf "%s" "${major}" | grep -Eq '^[0-9]+$' && [ "${major}" -lt 16 ]; then
-    err "RoomPlan vereist iPadOS 16 of hoger; geselecteerde iPad draait ${version}."
+    err "RoomPlan vereist iOS/iPadOS 16 of hoger; het geselecteerde apparaat draait ${version}."
     exit 1
   fi
 
   echo ""
-  log "Geselecteerde iPad:"
+  log "Geselecteerd iOS-apparaat:"
   echo "    Naam   : ${DEVICE_NAME}"
-  echo "    iPadOS : ${version:-onbekend}"
+  echo "    OS     : ${version:-onbekend}"
   echo "    UDID   : ${TARGET}"
 
   if [ "${IOS_CONFIRM:-1}" = "1" ]; then
     echo ""
-    read -r -p "Is dit de juiste iPad? [y/N]: " CONFIRM
+    read -r -p "Is dit het juiste iOS-apparaat? [y/N]: " CONFIRM
     case "${CONFIRM}" in
       y|Y|yes|YES|j|J|ja|JA) ok "Bevestigd." ;;
       *)
@@ -350,7 +445,8 @@ fi
 
 ensure_ios_platform
 resolve_team_id
-select_ipad
+resolve_bundle_id
+select_ios_device
 
 IOS_PROJECT_DIR="ios/App"
 SCHEME="${IOS_SCHEME:-App}"
@@ -371,13 +467,17 @@ if [ "${IOS_ALLOW_PROVISIONING_UPDATES:-1}" = "1" ]; then
   PROVISIONING_ARGS=(-allowProvisioningUpdates)
 fi
 
-log "Oude DerivedData voor deze iPad verwijderen..."
+log "Oude DerivedData voor dit iOS-apparaat verwijderen..."
 rm -rf "${DERIVED_DATA_PATH}"
 
 log "Native iOS-app bouwen met xcodebuild..."
 XCODE_TEAM_ARGS=()
 if [ -n "${IOS_DEVELOPMENT_TEAM:-}" ]; then
   XCODE_TEAM_ARGS=(DEVELOPMENT_TEAM="${IOS_DEVELOPMENT_TEAM}")
+fi
+XCODE_BUNDLE_ARGS=()
+if [ -n "${IOS_BUNDLE_ID:-}" ]; then
+  XCODE_BUNDLE_ARGS=(PRODUCT_BUNDLE_IDENTIFIER="${IOS_BUNDLE_ID}")
 fi
 ( cd "${IOS_PROJECT_DIR}" && xcrun xcodebuild \
   "${XCODE_CONTAINER_ARGS[@]}" \
@@ -387,6 +487,7 @@ fi
   -derivedDataPath "DerivedData/${TARGET}" \
   ${PROVISIONING_ARGS[@]+"${PROVISIONING_ARGS[@]}"} \
   ${XCODE_TEAM_ARGS[@]+"${XCODE_TEAM_ARGS[@]}"} \
+  ${XCODE_BUNDLE_ARGS[@]+"${XCODE_BUNDLE_ARGS[@]}"} \
   CODE_SIGN_STYLE=Automatic \
   build )
 
@@ -403,10 +504,10 @@ if [ -z "${BUNDLE_ID}" ]; then
   exit 1
 fi
 
-log "Native app installeren op iPad..."
+log "Native app installeren op iOS-apparaat..."
 xcrun devicectl device install app --device "${TARGET}" "${APP_PATH}"
 
-log "Native app starten op iPad..."
+log "Native app starten op iOS-apparaat..."
 xcrun devicectl device process launch --device "${TARGET}" "${BUNDLE_ID}"
 
-ok "Native iPad-app gestart. LiDAR-scan loopt via de RoomPlanScanner-plugin; geen browser/preview gebruikt."
+ok "Native iOS-app gestart. LiDAR-scan loopt via de RoomPlanScanner-plugin; geen browser/preview gebruikt."
