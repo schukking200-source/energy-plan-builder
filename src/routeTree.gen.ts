@@ -16,6 +16,10 @@ import { Route as AuthenticatedRoadmapRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedIntakeIndexRouteImport } from './routes/_authenticated/intake.index'
 import { Route as ApiPublicDevLoginRouteImport } from './routes/api/public/dev-login'
+import { Route as ApiProvisionCustomerRouteImport } from './routes/api/provision/customer'
+import { Route as ApiPaymentWebhookRouteImport } from './routes/api/payment/webhook'
+import { Route as ApiOrderCreateRouteImport } from './routes/api/order/create'
+import { Route as ApiDidCheckRouteImport } from './routes/api/did/check'
 import { Route as AuthenticatedIntakeNewRouteImport } from './routes/_authenticated/intake.new'
 import { Route as AuthenticatedIntakeIdRouteImport } from './routes/_authenticated/intake.$id'
 import { Route as AuthenticatedDashboardSteekproefRouteImport } from './routes/_authenticated/dashboard.steekproef'
@@ -56,6 +60,26 @@ const AuthenticatedIntakeIndexRoute =
 const ApiPublicDevLoginRoute = ApiPublicDevLoginRouteImport.update({
   id: '/api/public/dev-login',
   path: '/api/public/dev-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProvisionCustomerRoute = ApiProvisionCustomerRouteImport.update({
+  id: '/api/provision/customer',
+  path: '/api/provision/customer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPaymentWebhookRoute = ApiPaymentWebhookRouteImport.update({
+  id: '/api/payment/webhook',
+  path: '/api/payment/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOrderCreateRoute = ApiOrderCreateRouteImport.update({
+  id: '/api/order/create',
+  path: '/api/order/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDidCheckRoute = ApiDidCheckRouteImport.update({
+  id: '/api/did/check',
+  path: '/api/did/check',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedIntakeNewRoute = AuthenticatedIntakeNewRouteImport.update({
@@ -104,6 +128,10 @@ export interface FileRoutesByFullPath {
   '/dashboard/steekproef': typeof AuthenticatedDashboardSteekproefRoute
   '/intake/$id': typeof AuthenticatedIntakeIdRoute
   '/intake/new': typeof AuthenticatedIntakeNewRoute
+  '/api/did/check': typeof ApiDidCheckRoute
+  '/api/order/create': typeof ApiOrderCreateRoute
+  '/api/payment/webhook': typeof ApiPaymentWebhookRoute
+  '/api/provision/customer': typeof ApiProvisionCustomerRoute
   '/api/public/dev-login': typeof ApiPublicDevLoginRoute
   '/intake/': typeof AuthenticatedIntakeIndexRoute
 }
@@ -118,6 +146,10 @@ export interface FileRoutesByTo {
   '/dashboard/steekproef': typeof AuthenticatedDashboardSteekproefRoute
   '/intake/$id': typeof AuthenticatedIntakeIdRoute
   '/intake/new': typeof AuthenticatedIntakeNewRoute
+  '/api/did/check': typeof ApiDidCheckRoute
+  '/api/order/create': typeof ApiOrderCreateRoute
+  '/api/payment/webhook': typeof ApiPaymentWebhookRoute
+  '/api/provision/customer': typeof ApiProvisionCustomerRoute
   '/api/public/dev-login': typeof ApiPublicDevLoginRoute
   '/intake': typeof AuthenticatedIntakeIndexRoute
 }
@@ -134,6 +166,10 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/steekproef': typeof AuthenticatedDashboardSteekproefRoute
   '/_authenticated/intake/$id': typeof AuthenticatedIntakeIdRoute
   '/_authenticated/intake/new': typeof AuthenticatedIntakeNewRoute
+  '/api/did/check': typeof ApiDidCheckRoute
+  '/api/order/create': typeof ApiOrderCreateRoute
+  '/api/payment/webhook': typeof ApiPaymentWebhookRoute
+  '/api/provision/customer': typeof ApiProvisionCustomerRoute
   '/api/public/dev-login': typeof ApiPublicDevLoginRoute
   '/_authenticated/intake/': typeof AuthenticatedIntakeIndexRoute
 }
@@ -150,6 +186,10 @@ export interface FileRouteTypes {
     | '/dashboard/steekproef'
     | '/intake/$id'
     | '/intake/new'
+    | '/api/did/check'
+    | '/api/order/create'
+    | '/api/payment/webhook'
+    | '/api/provision/customer'
     | '/api/public/dev-login'
     | '/intake/'
   fileRoutesByTo: FileRoutesByTo
@@ -164,6 +204,10 @@ export interface FileRouteTypes {
     | '/dashboard/steekproef'
     | '/intake/$id'
     | '/intake/new'
+    | '/api/did/check'
+    | '/api/order/create'
+    | '/api/payment/webhook'
+    | '/api/provision/customer'
     | '/api/public/dev-login'
     | '/intake'
   id:
@@ -179,6 +223,10 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/steekproef'
     | '/_authenticated/intake/$id'
     | '/_authenticated/intake/new'
+    | '/api/did/check'
+    | '/api/order/create'
+    | '/api/payment/webhook'
+    | '/api/provision/customer'
     | '/api/public/dev-login'
     | '/_authenticated/intake/'
   fileRoutesById: FileRoutesById
@@ -187,6 +235,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiDidCheckRoute: typeof ApiDidCheckRoute
+  ApiOrderCreateRoute: typeof ApiOrderCreateRoute
+  ApiPaymentWebhookRoute: typeof ApiPaymentWebhookRoute
+  ApiProvisionCustomerRoute: typeof ApiProvisionCustomerRoute
   ApiPublicDevLoginRoute: typeof ApiPublicDevLoginRoute
 }
 
@@ -239,6 +291,34 @@ declare module '@tanstack/react-router' {
       path: '/api/public/dev-login'
       fullPath: '/api/public/dev-login'
       preLoaderRoute: typeof ApiPublicDevLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/provision/customer': {
+      id: '/api/provision/customer'
+      path: '/api/provision/customer'
+      fullPath: '/api/provision/customer'
+      preLoaderRoute: typeof ApiProvisionCustomerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/payment/webhook': {
+      id: '/api/payment/webhook'
+      path: '/api/payment/webhook'
+      fullPath: '/api/payment/webhook'
+      preLoaderRoute: typeof ApiPaymentWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/order/create': {
+      id: '/api/order/create'
+      path: '/api/order/create'
+      fullPath: '/api/order/create'
+      preLoaderRoute: typeof ApiOrderCreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/did/check': {
+      id: '/api/did/check'
+      path: '/api/did/check'
+      fullPath: '/api/did/check'
+      preLoaderRoute: typeof ApiDidCheckRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/intake/new': {
@@ -330,6 +410,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiDidCheckRoute: ApiDidCheckRoute,
+  ApiOrderCreateRoute: ApiOrderCreateRoute,
+  ApiPaymentWebhookRoute: ApiPaymentWebhookRoute,
+  ApiProvisionCustomerRoute: ApiProvisionCustomerRoute,
   ApiPublicDevLoginRoute: ApiPublicDevLoginRoute,
 }
 export const routeTree = rootRouteImport
